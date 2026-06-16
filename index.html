@@ -1,0 +1,421 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="theme-color" content="#0b1323" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-title" content="VM Collection" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <title>VM Collection</title>
+  <link rel="manifest" href="manifest.webmanifest" />
+  <link rel="apple-touch-icon" href="assets/icon-180.png" />
+  <link rel="icon" href="assets/icon-192.png" />
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <div id="appShell">
+    <header class="topbar">
+      <button class="brand-wrap" type="button" data-go="homeView" aria-label="Ir para o início">
+        <img src="assets/icon-192.png" alt="Logo VM Collection" class="brand-logo" />
+        <div class="brand-text">
+          <div class="brand-vm">VM</div>
+          <div class="brand-collection">COLLECTION</div>
+          <div class="brand-line"><span></span><i></i><span></span></div>
+        </div>
+      </button>
+      <div class="top-actions">
+        <button class="home-profile-btn" type="button" data-go="profileView" aria-label="Abrir perfil">
+          <img id="homeProfileImage" src="assets/icon-192.png" alt="Foto do perfil" />
+        </button>
+        <button class="notify-btn" type="button" aria-label="Notificações">
+          <span class="notify-dot"></span>
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 22a2.5 2.5 0 0 0 2.45-2h-4.9A2.5 2.5 0 0 0 12 22Zm7-4H5l1.6-1.78V11a5.4 5.4 0 0 1 4.4-5.3V5a1 1 0 1 1 2 0v.7A5.4 5.4 0 0 1 17.4 11v5.22Z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </button>
+      </div>
+    </header>
+
+    <main class="content">
+      <!-- INÍCIO -->
+      <section id="homeView" class="view active">
+        <div class="hero-card">
+          <div class="hero-copy">
+            <span class="eyebrow">CATÁLOGO PREMIUM</span>
+            <h2>Organize suas coleções</h2>
+            <button class="hero-btn" data-go="addView" type="button">
+              <span class="hero-plus">+</span>
+              <span>Adicionar item</span>
+            </button>
+          </div>
+          <div class="hero-art">
+            <div class="camera-ring"></div>
+            <div class="hero-profile-block">
+              <div class="hero-profile-frame">
+                <img id="heroProfileImage" src="assets/icon-192.png" alt="Foto do perfil em destaque" />
+              </div>
+              <div class="hero-profile-name" id="heroProfileName">Seu nome</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="section-title"><h3>Resumo da coleção</h3></div>
+        <div class="stats-grid home-stats">
+          <article class="stat-card"><div class="stat-icon" id="iconCats"></div><span>Categorias cadastradas</span><strong id="statCats">0</strong></article>
+          <article class="stat-card"><div class="stat-icon" id="iconDesired"></div><span>Desejados</span><strong id="statDesired">0</strong></article>
+          <article class="stat-card"><div class="stat-icon" id="iconRare"></div><span>Raros</span><strong id="statRare">0</strong></article>
+          <article class="stat-card"><div class="stat-icon" id="iconFav"></div><span>Favoritos</span><strong id="statFav">0</strong></article>
+        </div>
+
+        <div class="section-title"><h3>Acessos rápidos</h3></div>
+        <div class="quick-grid">
+          <button class="quick-card" data-go="categoriesView" type="button"><div class="quick-icon" id="quickCat"></div><span>Categorias</span></button>
+          <button class="quick-card" data-go="catalogView" type="button"><div class="quick-icon" id="quickFilter"></div><span>Filtros</span></button>
+          <button class="quick-card" data-go="reportsView" type="button"><div class="quick-icon" id="quickReport"></div><span>Relatórios</span></button>
+          <button class="quick-card" data-go="statsView" type="button"><div class="quick-icon" id="quickStats"></div><span>Estatísticas</span></button>
+        </div>
+
+        <div class="section-title with-action">
+          <h3>Últimos itens adicionados</h3>
+          <button class="link-btn" data-go="catalogView" type="button">Ver todos <span>›</span></button>
+        </div>
+        <div id="recentItems" class="recent-row"></div>
+        <div class="home-signature" aria-label="Assinatura do aplicativo">——— MSantoro ———</div>
+      </section>
+
+      <!-- CATÁLOGO -->
+      <section id="catalogView" class="view">
+        <div class="premium-page-banner compact-banner">
+          <div class="page-banner-copy">
+            <span class="eyebrow">SEU ACERVO</span>
+            <h2>Catálogo</h2>
+            <p>Encontre rapidamente qualquer item da sua coleção.</p>
+          </div>
+          <div class="banner-icon" id="bannerCatalogIcon"></div>
+          <button class="banner-action" data-go="addView" type="button"><span>+</span> Adicionar item</button>
+        </div>
+
+        <div class="premium-panel filter-section">
+          <div class="panel-head">
+            <div><span class="panel-kicker">PESQUISA E FILTROS</span><h3>Localizar itens</h3></div>
+            <button id="clearFiltersBtn" class="text-action" type="button">Limpar filtros</button>
+          </div>
+          <div class="catalog-search-wrap">
+            <span class="search-symbol">⌕</span>
+            <input id="searchInput" type="search" placeholder="Buscar por nome" aria-label="Buscar item por nome" />
+          </div>
+          <div class="advanced-filters">
+            <select id="desiredFilter" aria-label="Filtrar por possuídos e desejados"><option value="">Possuídos e desejados</option><option value="possessed">Somente possuídos</option><option value="desired">Somente desejados</option></select>
+            <select id="categoryFilter"><option value="">Todas as categorias</option></select>
+            <input id="brandFilter" type="search" placeholder="Marca / fabricante" />
+            <input id="yearFilter" type="search" placeholder="Ano" />
+            <input id="modelFilter" type="search" placeholder="Modelo" />
+            <input id="scaleFilter" type="search" placeholder="Escala" />
+            <select id="rarityFilter"><option value="">Todos os níveis</option><option value="rare">Somente raros</option><option value="not-rare">Excluir raros</option></select>
+            <select id="favoriteFilter"><option value="">Todos os favoritos</option><option value="favorite">Somente favoritos</option></select>
+          </div>
+          <div class="pdf-action-row">
+            <div>
+              <span class="panel-kicker">CATÁLOGO PERSONALIZADO</span>
+              <p>O PDF seguirá os filtros e a ordem atualmente selecionados.</p>
+            </div>
+            <button id="generateCatalogPdfBtn" class="generate-pdf-btn" type="button">
+              <span class="pdf-btn-icon">PDF</span>
+              Gerar catálogo em PDF
+            </button>
+          </div>
+        </div>
+
+        <div class="catalog-toolbar">
+          <div class="selection-summary">
+            <article class="info-mini"><span>Itens encontrados</span><strong id="selectionCount">0</strong></article>
+            <article class="info-mini value-only"><span>Valor estimado da seleção</span><strong id="selectionValue">R$ 0</strong></article>
+          </div>
+          <div class="catalog-controls">
+            <select id="sortSelect"><option value="newest">Mais recentes</option><option value="name">Nome</option><option value="category">Categoria</option><option value="value">Maior valor</option></select>
+            <div class="segmented"><button id="gridBtn" class="active" type="button" aria-label="Grade">▦</button><button id="listBtn" type="button" aria-label="Lista">☷</button></div>
+          </div>
+        </div>
+        <div id="catalogItems" class="cards-grid empty-state"></div>
+      </section>
+
+      <!-- CADASTRO -->
+      <section id="addView" class="view">
+        <div class="premium-page-banner add-banner">
+          <div class="page-banner-copy">
+            <span class="eyebrow">NOVO CADASTRO</span>
+            <h2 id="formTitle">Adicionar item</h2>
+            <p>Registre fotos, vídeo e detalhes importantes em poucos passos.</p>
+          </div>
+          <div class="banner-icon" id="bannerAddIcon"></div>
+        </div>
+
+        <form id="itemForm" class="premium-form">
+          <input type="hidden" id="editingId" />
+
+          <section class="form-section media-section">
+            <div class="section-number">01</div>
+            <div class="form-section-content">
+              <div class="form-section-head"><div><span class="panel-kicker">IMAGENS DO ITEM</span><h3>Foto e vídeo</h3></div><button class="text-action" id="removeMediaBtn" type="button">Remover mídia</button></div>
+              <div class="media-panel">
+                <div class="preview-box" id="photoPreview"><div class="preview-placeholder"><span class="camera-placeholder">⌾</span><strong>Foto principal</strong><small>Use a câmera ou escolha uma imagem</small></div></div>
+                <div class="media-side">
+                  <div class="media-actions">
+                    <label class="media-button primary-media"><span>◉</span>Tirar foto<input id="cameraInput" type="file" accept="image/*" capture="environment" hidden /></label>
+                    <label class="media-button"><span>▧</span>Escolher da galeria<input id="galleryInput" type="file" accept="image/*" hidden /></label>
+                    <button type="button" class="media-button" id="openVideoBtn"><span>▷</span>Gravar vídeo de 10s</button>
+                  </div>
+                  <div class="media-hint"><strong>Dica</strong><p>Fotografe o item com boa luz e fundo neutro para destacar seus detalhes.</p></div>
+                  <div id="videoPreview" class="video-preview"></div>
+                </div>
+              </div>
+              <div class="persistent-files-panel">
+                <div class="persistent-files-copy">
+                  <span class="panel-kicker">ARQUIVOS PERSISTENTES</span>
+                  <h4>Documentos e anexos do item</h4>
+                  <p>PDFs, imagens e documentos ficam salvos no próprio dispositivo e entram no backup completo.</p>
+                </div>
+                <label class="secondary-btn persistent-file-button">Anexar arquivos
+                  <input id="itemFilesInput" type="file" multiple accept="image/*,.pdf,.doc,.docx,.xls,.xlsx,.txt,.zip" hidden />
+                </label>
+              </div>
+              <div id="itemAttachmentList" class="attachment-list"></div>
+            </div>
+          </section>
+
+          <section class="form-section">
+            <div class="section-number">02</div>
+            <div class="form-section-content">
+              <div class="form-section-head"><div><span class="panel-kicker">IDENTIFICAÇÃO</span><h3>Informações principais</h3></div></div>
+              <div class="form-grid">
+                <label class="field-wide">Nome do item<input id="name" required placeholder="Ex: Porsche 911 GT3, moeda comemorativa..." /></label>
+                <label>Categoria<input id="category" list="categoryList" placeholder="Ex: Miniaturas, Relógios" /><datalist id="categoryList"></datalist></label>
+                <label>Subcategoria<input id="subcategory" placeholder="Ex: Premium, Automático" /></label>
+                <label>Marca / fabricante / origem<input id="brand" placeholder="Ex: Mattel, Tag Heuer, Brasil" /></label>
+                <label>Modelo<input id="model" placeholder="Ex: Carrera, R34, GT3" /></label>
+                <label>Escala<input id="scale" placeholder="Ex: 1:64, 1:18" /></label>
+                <label>Ano / data aproximada<input id="year" placeholder="Ex: 2023" /></label>
+                <label>Estado de conservação<select id="condition"><option value="">Não informado</option><option>Novo</option><option>Excelente</option><option>Muito bom</option><option>Bom</option><option>Regular</option><option>Restaurado</option></select></label>
+                <label>Código / número de série<input id="serial" placeholder="Opcional" /></label>
+                <label>Tags<input id="tags" placeholder="raro, importado, edição limitada..." /></label>
+              </div>
+            </div>
+          </section>
+
+          <section class="form-section">
+            <div class="section-number">03</div>
+            <div class="form-section-content">
+              <div class="form-section-head"><div><span class="panel-kicker">AQUISIÇÃO E VALOR</span><h3>Histórico do item</h3></div></div>
+              <div class="form-grid">
+                <label>Valor pago<input id="paidValue" type="number" min="0" step="0.01" placeholder="0,00" /></label>
+                <label>Valor estimado atual<input id="estimatedValue" type="number" min="0" step="0.01" placeholder="0,00" /></label>
+                <label>Data de aquisição<input id="acquiredAt" type="date" /></label>
+                <label>Local de aquisição<input id="acquiredPlace" placeholder="Loja, feira, leilão..." /></label>
+              </div>
+            </div>
+          </section>
+
+          <section class="form-section">
+            <div class="section-number">04</div>
+            <div class="form-section-content">
+              <div class="form-section-head"><div><span class="panel-kicker">CLASSIFICAÇÃO</span><h3>Marcadores especiais</h3></div></div>
+              <div class="flags-row">
+                <label class="check-tile"><input id="favorite" type="checkbox" /><span class="flag-icon">☆</span><span><strong>Favorito</strong><small>Item de destaque</small></span></label>
+                <label class="check-tile"><input id="desired" type="checkbox" /><span class="flag-icon">♡</span><span><strong>Desejado</strong><small>Quero adquirir</small></span></label>
+                <label class="check-tile"><input id="rare" type="checkbox" /><span class="flag-icon">◇</span><span><strong>Raro</strong><small>Item de raridade</small></span></label>
+              </div>
+              <label class="wide-label">Descrição<textarea id="description" rows="4" placeholder="Descreva detalhes, procedência e características importantes..."></textarea></label>
+              <label class="wide-label">Observações<textarea id="notes" rows="3" placeholder="Anotações livres"></textarea></label>
+            </div>
+          </section>
+
+          <div class="sticky-form-actions">
+            <button type="button" class="secondary-btn" id="clearFormBtn">Limpar</button>
+            <button type="button" class="secondary-btn" id="cancelEditBtn" hidden>Cancelar edição</button>
+            <button type="submit" class="primary-btn save-btn">Salvar item</button>
+          </div>
+        </form>
+      </section>
+
+      <!-- CATEGORIAS -->
+      <section id="categoriesView" class="view">
+        <div class="premium-page-banner category-banner">
+          <div class="page-banner-copy"><span class="eyebrow">ORGANIZAÇÃO</span><h2>Categorias</h2><p>Visualize quantidade e valor estimado por grupo.</p></div>
+          <div class="banner-icon" id="bannerCategoryIcon"></div>
+        </div>
+        <div class="category-summary-row">
+          <article class="metric-card dark-metric"><span>Categorias cadastradas</span><strong id="categoriesTotal">0</strong></article>
+          <article class="metric-card"><span>Categoria com mais itens</span><strong id="topCategoryName">—</strong><small id="topCategoryCount">Sem dados</small></article>
+        </div>
+        <div class="section-title with-action"><h3>Suas categorias</h3><span class="category-help">Toque em “Gerenciar mídia” para anexar imagem ou arquivos.</span></div>
+        <div id="categoryCards" class="category-grid empty-state"></div>
+      </section>
+
+      <!-- RELATÓRIOS -->
+      <section id="reportsView" class="view">
+        <div class="premium-page-banner reports-banner">
+          <div class="page-banner-copy"><span class="eyebrow">ANÁLISE DO ACERVO</span><h2>Relatórios</h2><p>Compare quantidades e valores por diferentes critérios.</p></div>
+          <div class="banner-icon" id="bannerReportIcon"></div>
+        </div>
+        <div class="report-summary-grid">
+          <article class="metric-card"><span>Total de itens analisados</span><strong id="reportTotalItems">0</strong></article>
+          <article class="metric-card"><span>Categorias no relatório</span><strong id="reportTotalCategories">0</strong></article>
+          <article class="metric-card"><span>Itens raros</span><strong id="reportRareCount">0</strong></article>
+        </div>
+        <div class="report-grid">
+          <article class="info-card report-card"><div class="report-card-head"><span class="report-card-icon" id="reportIconCategory"></span><div><span class="panel-kicker">DISTRIBUIÇÃO</span><h3>Por categoria</h3></div></div><div id="reportCategory"></div></article>
+          <article class="info-card report-card"><div class="report-card-head"><span class="report-card-icon" id="reportIconBrand"></span><div><span class="panel-kicker">FABRICANTES</span><h3>Por marca</h3></div></div><div id="reportBrand"></div></article>
+          <article class="info-card report-card"><div class="report-card-head"><span class="report-card-icon" id="reportIconYear"></span><div><span class="panel-kicker">CRONOLOGIA</span><h3>Por ano</h3></div></div><div id="reportYear"></div></article>
+          <article class="info-card report-card"><div class="report-card-head"><span class="report-card-icon" id="reportIconRare"></span><div><span class="panel-kicker">CLASSIFICAÇÃO</span><h3>Por raridade</h3></div></div><div id="reportRare"></div></article>
+        </div>
+      </section>
+
+      <!-- ESTATÍSTICAS -->
+      <section id="statsView" class="view">
+        <div class="premium-page-banner stats-banner">
+          <div class="page-banner-copy"><span class="eyebrow">EVOLUÇÃO</span><h2>Estatísticas</h2><p>Acompanhe o crescimento e os principais destaques.</p></div>
+          <div class="banner-icon" id="bannerStatsIcon"></div>
+        </div>
+        <div class="stats-dashboard">
+          <article class="dashboard-stat"><span>Total de itens</span><strong id="dashTotalItems">0</strong><small>Cadastros realizados</small></article>
+          <article class="dashboard-stat"><span>Categoria líder</span><strong id="dashTopCategory">—</strong><small>Maior quantidade</small></article>
+          <article class="dashboard-stat"><span>Favoritos</span><strong id="dashFavorites">0</strong><small>Itens destacados</small></article>
+          <article class="dashboard-stat"><span>Raros</span><strong id="dashRares">0</strong><small>Classificados como raros</small></article>
+        </div>
+        <div class="analytics-grid">
+          <article class="info-card chart-card">
+            <div class="panel-head"><div><span class="panel-kicker">CADASTROS POR PERÍODO</span><h3>Crescimento da coleção</h3></div></div>
+            <div id="growthChart" class="growth-chart"></div>
+            <div id="growthList" class="list-report"></div>
+          </article>
+          <article class="info-card insight-card">
+            <div class="panel-head"><div><span class="panel-kicker">INSIGHTS</span><h3>Destaques atuais</h3></div></div>
+            <div id="insightList" class="insight-list"></div>
+          </article>
+        </div>
+      </section>
+
+      <!-- PERFIL -->
+      <section id="profileView" class="view">
+        <div class="premium-page-banner profile-banner">
+          <div class="profile-mark">VM</div>
+          <div class="page-banner-copy"><span class="eyebrow">SUA CONTA</span><h2>Perfil e configurações</h2><p>Gerencie dados, backup e acesso compartilhado.</p></div>
+        </div>
+
+        <div class="profile-overview">
+          <div class="profile-avatar"><img id="profileOverviewImage" src="assets/icon-192.png" alt="Foto do perfil" /></div>
+          <div><span class="panel-kicker">PERFIL DO USUÁRIO</span><h3 id="profileOverviewName">Seu nome</h3><p id="profileOverviewBio">Adicione uma breve descrição sobre você.</p></div>
+          <span class="status-pill">Ativo</span>
+        </div>
+
+        <form id="profileForm" class="info-card profile-form-card">
+          <div class="panel-head">
+            <div><span class="panel-kicker">DADOS PESSOAIS</span><h3>Seu cadastro</h3></div>
+          </div>
+          <div class="profile-edit-grid">
+            <div class="profile-photo-editor">
+              <div class="profile-photo-preview"><img id="profilePhotoPreview" src="assets/icon-192.png" alt="Prévia da foto de perfil" /></div>
+              <label class="secondary-btn profile-photo-button">Anexar foto<input id="profilePhotoInput" type="file" accept="image/*" hidden /></label>
+              <button id="removeProfilePhotoBtn" class="text-action" type="button">Remover foto</button>
+            </div>
+            <div class="profile-fields">
+              <label>Nome
+                <input id="profileName" type="text" autocomplete="name" placeholder="Digite seu nome" />
+              </label>
+              <label>Data de nascimento
+                <input id="profileBirthDate" type="date" />
+              </label>
+              <label class="profile-bio-field">Bio / descrição
+                <textarea id="profileBio" rows="4" maxlength="500" placeholder="Escreva uma breve descrição sobre você e suas coleções."></textarea>
+              </label>
+              <div class="profile-save-row">
+                <button class="primary-btn" type="submit">Salvar perfil</button>
+                <span id="profileSaveStatus" class="save-status" aria-live="polite"></span>
+              </div>
+            </div>
+          </div>
+        </form>
+
+        <div class="settings-grid premium-settings">
+          <article class="info-card setting-card">
+            <div class="setting-icon" id="backupSettingIcon"></div>
+            <div class="setting-copy"><span class="panel-kicker">SEGURANÇA</span><h3>Backup da coleção</h3><p>Exporte um arquivo completo com itens, fotos, vídeos e dados do perfil, ou restaure tudo em outro aparelho.</p></div>
+            <div class="setting-actions"><button id="exportBtn" class="primary-btn" type="button">Exportar backup</button><label class="secondary-btn file-backup">Importar backup<input id="importInput" type="file" accept="application/json" hidden /></label></div><small id="backupStatus" class="backup-status" aria-live="polite"></small>
+          </article>
+
+          <article class="info-card setting-card">
+            <div class="setting-icon" id="installSettingIcon"></div>
+            <div class="setting-copy"><span class="panel-kicker">APLICATIVO</span><h3>Adicionar à tela inicial</h3><p>No iPhone, abra no Safari e use Compartilhar → Adicionar à Tela de Início. O logo será aplicado automaticamente.</p></div>
+            <div class="setting-actions"><button class="secondary-btn" id="installBtn" type="button" hidden>Instalar no Android</button></div>
+          </article>
+
+          <article class="info-card setting-card sharing-card">
+            <div class="setting-icon" id="shareSettingIcon"></div>
+            <div class="setting-copy"><span class="panel-kicker">COLEÇÃO COMPARTILHADA</span><h3>Acesso da família</h3><p>Estrutura visual preparada para contas individuais acessarem a mesma coleção em celulares diferentes.</p></div>
+            <div class="roles-row"><span><strong>Administrador</strong><small>Acesso total</small></span><span><strong>Editor</strong><small>Cadastra e edita</small></span><span><strong>Visualizador</strong><small>Somente consulta</small></span></div>
+            <div class="development-note"><span>Em preparação</span> A sincronização real requer conexão com banco de dados.</div>
+          </article>
+        </div>
+      </section>
+
+      <!-- DETALHES -->
+      <section id="detailView" class="view">
+        <button class="ghost-btn back-btn" data-go="catalogView" type="button">← Voltar ao catálogo</button>
+        <div id="detailContent"></div>
+      </section>
+    </main>
+
+    <nav class="bottom-nav" aria-label="Menu principal">
+      <button class="nav-item active" data-go="homeView" type="button"><span class="nav-ico">⌂</span><span>Início</span></button>
+      <button class="nav-item" data-go="catalogView" type="button"><span class="nav-ico">▦</span><span>Catálogo</span></button>
+      <button class="nav-item add-nav" data-go="addView" type="button"><span class="nav-ico plus-nav">+</span><span>Adicionar</span></button>
+      <button class="nav-item" data-go="profileView" type="button"><span class="nav-ico">◌</span><span>Perfil</span></button>
+    </nav>
+  </div>
+
+  <dialog id="categoryDialog" class="media-dialog">
+    <form id="categoryMediaForm" class="dialog-card category-media-form" method="dialog">
+      <div class="dialog-title-row">
+        <div><span class="panel-kicker">CATEGORIA</span><h3 id="categoryDialogTitle">Gerenciar mídia</h3></div>
+        <button id="closeCategoryDialogBtn" class="ghost-btn" type="button">Fechar</button>
+      </div>
+      <input id="categoryEditingId" type="hidden" />
+      <div class="category-editor-grid">
+        <div>
+          <div id="categoryImagePreview" class="category-image-preview"><span>Sem imagem</span></div>
+          <label class="secondary-btn category-image-button">Escolher imagem<input id="categoryImageInput" type="file" accept="image/*" hidden /></label>
+          <button id="removeCategoryImageBtn" class="text-action" type="button">Remover imagem</button>
+        </div>
+        <div>
+          <p class="category-editor-help">A imagem e os arquivos serão gravados em IndexedDB, sem depender de links temporários.</p>
+          <label class="secondary-btn persistent-file-button">Anexar arquivos à categoria
+            <input id="categoryFilesInput" type="file" multiple accept="image/*,.pdf,.doc,.docx,.xls,.xlsx,.txt,.zip" hidden />
+          </label>
+          <div id="categoryAttachmentList" class="attachment-list"></div>
+        </div>
+      </div>
+      <div class="dialog-actions">
+        <button id="saveCategoryMediaBtn" class="primary-btn" type="submit">Salvar categoria</button>
+      </div>
+    </form>
+  </dialog>
+
+  <dialog id="videoDialog">
+    <div class="dialog-card">
+      <span class="panel-kicker">CÂMERA</span>
+      <h3>Gravar vídeo do item</h3>
+      <p>O vídeo será encerrado automaticamente ao atingir 10 segundos.</p>
+      <video id="liveVideo" autoplay muted playsinline></video>
+      <div class="record-timer" id="recordStatus">Pronto para gravar.</div>
+      <div class="dialog-actions">
+        <button id="startRecordBtn" class="primary-btn" type="button">Iniciar gravação</button>
+        <button id="stopRecordBtn" class="secondary-btn" type="button" disabled>Parar</button>
+        <button id="closeVideoBtn" class="ghost-btn" type="button">Fechar</button>
+      </div>
+    </div>
+  </dialog>
+
+  <template id="emptyTemplate"><div class="empty"><span class="empty-symbol">◇</span><strong>Nenhum item por aqui ainda.</strong><p>Use “Adicionar item” para começar sua coleção.</p></div></template>
+  <script src="storage.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
