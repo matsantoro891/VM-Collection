@@ -181,6 +181,31 @@ async function saveProfile() {
   }
 }
 
+function updateProfilePhotoPreview() {
+  const src = profileDraftPhoto || "assets/icon-192.png";
+  if ($("profilePhotoPreview")) $("profilePhotoPreview").src = src;
+}
+
+function renderProfile() {
+  const data = normalizeProfile(profile);
+  if ($("profileName")) $("profileName").value = data.name || "";
+  if ($("profileBirthDate")) $("profileBirthDate").value = data.birthDate || "";
+  if ($("profileBio")) $("profileBio").value = data.bio || "";
+  profileDraftPhoto = data.photo || "";
+  updateProfilePhotoPreview();
+
+  const photo = profileDraftPhoto || "assets/icon-192.png";
+  const displayName = data.name?.trim() || "Seu nome";
+  const displayBio = data.bio?.trim() || "Adicione uma breve descrição sobre você.";
+
+  if ($("homeProfileImage")) $("homeProfileImage").src = photo;
+  if ($("heroProfileImage")) $("heroProfileImage").src = photo;
+  if ($("profileOverviewImage")) $("profileOverviewImage").src = photo;
+  if ($("heroProfileName")) $("heroProfileName").textContent = displayName;
+  if ($("profileOverviewName")) $("profileOverviewName").textContent = displayName;
+  if ($("profileOverviewBio")) $("profileOverviewBio").textContent = displayBio;
+}
+
 function getCategories() {
   const names = new Set(categories.map((c) => c.name).filter(Boolean));
   items.forEach((item) => { if (item.category) names.add(item.category); });
