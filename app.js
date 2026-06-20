@@ -208,7 +208,99 @@ function renderProfile() {
 function getCategories() {
   const names = new Set(categories.map((c) => c.name).filter(Boolean));
   items.forEach((item) => { if (item.category) names.add(item.category); });
-  return [...names].sort((a, b) => a.localeCompare(b));
+  return [...names].sort((a, b) => a.localeCompare(b, "pt-BR"));
+}
+
+function getCategoryRecordByName(name) {
+  const trimmed = String(name || "").trim();
+  if (!trimmed) return null;
+  return categories.find((c) => c.name.toLowerCase() === trimmed.toLowerCase()) || normalizeCategory({ name: trimmed });
+}
+
+function getCategoryOptionEntries() {
+  return getCategories().map((name) => {
+    const category = getCategoryRecordByName(name);
+    return { id: category.id, name: category.name };
+  });
+}
+
+function getCategoryNameById(categoryId) {
+  if (!categoryId) return "";
+  const stored = categories.find((c) => c.id === categoryId);
+  if (stored) return stored.name;
+  for (const name of getCategories()) {
+    if (getCategoryRecordByName(name).id === categoryId) return name;
+  }
+  return "";
+}
+
+function itemBelongsToCategory(item, categoryId) {
+  if (!categoryId) return true;
+  const record = getCategoryRecordByName(item.category);
+  if (!record) return categoryIdFromName(item.category) === categoryId;
+  return record.id === categoryId;
+}
+
+const PT_COLLATOR = new Intl.Collator("pt-BR", { sensitivity: "base", numeric: true });
+
+function parseSortableDate(value) {
+  if (!value) return null;
+  const time = new Date(value).getTime();
+  return Number.isNaN(time) ? null : time;
+}
+
+function itemHasEstimatedValue(item) {
+  const value = item?.estimatedValue;
+  return value !== null && value !== undefined && String(value).trim() !== "" && !Number.isNaN(Number(value));
+}
+
+function compareCatalogNames(a, b, direction = 1) {
+  const nameA = String(a || "").trim();
+  const nameB = String(b || "").trim();
+  if (!nameA && !nameB) return 0;
+  if (!nameA) return 1;
+  if (!nameB) return -1;
+  return direction * PT_COLLATOR.compare(nameA, nameB);
+}
+
+function compareCatalogPrices(a, b, ascending) {
+  const hasA = itemHasEstimatedValue(a);
+  const hasB = itemHasEstimatedValue(b);
+  if (!hasA && !hasB) return 0;
+  if (!hasA) return 1;
+  if (!hasB) return -1;
+  const valA = Number(a.estimatedValue);
+  const valB = Number(b.estimatedValue);
+  return ascending ? valA - valB : valB - valA;
+}
+
+function compareCatalogDates(a, b, field, ascending) {
+  const timeA = parseSortableDate(a[field]);
+  const timeB = parseSortableDate(b[field]);
+  if (timeA === null && timeB === null) return 0;
+  if (timeA === null) return 1;
+  if (timeB === null) return -1;
+  return ascending ? timeA - timeB : timeB - timeA;
+}
+
+function sortCatalogItems(list, sortKey) {
+  const sorted = [...list];
+  const key = sortKey === "name" ? "name-asc" : sortKey === "value" ? "value-desc" : sortKey;
+  sorted.sort((a, b) => {
+    switch (key) {
+      case "name-asc": return compareCatalogNames(a.name, b.name, 1);
+      case "name-desc": return compareCatalogNames(a.name, b.name, -1);
+      case "value-asc": return compareCatalogPrices(a, b, true);
+      case "value-desc": return compareCatalogPrices(a, b, false);
+      case "acquired-desc": return compareCatalogDates(a, b, "acquiredAt", false);
+      case "acquired-asc": return compareCatalogDates(a, b, "acquiredAt", true);
+      case "created-asc": return compareCatalogDates(a, b, "createdAt", true);
+      case "category": return compareCatalogNames(a.category, b.category, 1);
+      case "newest":
+      default: return compareCatalogDates(a, b, "createdAt", false);
+    }
+  });
+  return sorted;
 }
 
 function fileToDataUrl(file) {
@@ -333,28 +425,28 @@ function recentCard(item) {
 }
 
 function getCategoryGroups() {
-  return getCategories().map((cat) => {
-    const category = categories.find((c) => c.name.toLowerCase() === cat.toLowerCase()) || normalizeCategory({ name: cat });
-    const group = items.filter((i) => i.category === cat);
-    return { cat, category, count: group.length };
+  return getCategoryOptionEntries().map(({ id, name }) => {
+    const category = getCategoryRecordByName(name);
+    const count = items.filter((i) => itemBelongsToCategory(i, id)).length;
+    return { id, cat: name, category, count };
   }).sort((a, b) => a.cat.localeCompare(b.cat, "pt-BR"));
 }
 
-function homeCategoryCard({ cat, category, count }) {
+function homeCategoryCard({ id, cat, category, count }) {
   const initials = cat.split(/\s+/).slice(0, 2).map((x) => x[0]).join("").toUpperCase();
   const media = category.image
     ? `<div class="home-category-cover"><img src="${category.image}" alt="" onerror="this.hidden=true;this.nextElementSibling.hidden=false"><div class="home-category-placeholder" hidden>${escapeHtml(initials || "VM")}</div></div>`
     : `<div class="home-category-cover"><div class="home-category-placeholder">${escapeHtml(initials || "VM")}</div></div>`;
-  return `<button type="button" class="home-category-card" data-category="${encodeURIComponent(cat)}" aria-label="Abrir catálogo de ${escapeHtml(cat)}">${media}<div class="home-category-body"><h4>${escapeHtml(cat)}</h4><span>${count} item(ns)</span></div></button>`;
+  return `<button type="button" class="home-category-card" data-category-id="${escapeHtml(id)}" aria-label="Abrir catálogo de ${escapeHtml(cat)}">${media}<div class="home-category-body"><h4>${escapeHtml(cat)}</h4><span>${count} item(ns)</span></div></button>`;
 }
 
 function homeCategoriesEmptyHtml() {
   return `<div class="empty home-categories-empty"><span class="empty-symbol">◇</span><strong>Nenhuma categoria cadastrada.</strong><p>Cadastre categorias ao adicionar itens ou pela área de Categorias.</p><button class="secondary-btn home-categories-empty-btn" type="button" data-go="categoriesView">Ir para Categorias</button></div>`;
 }
 
-function openCatalogForCategory(categoryName) {
-  if (!categoryName) return;
-  $("categoryFilter").value = categoryName;
+function openCatalogForCategory(categoryId) {
+  if (!categoryId) return;
+  $("categoryFilter").value = categoryId;
   showView("catalogView");
   renderCatalog();
 }
@@ -369,7 +461,7 @@ function renderHome() {
 
 function filterItems() {
   const search = $("searchInput").value.trim().toLowerCase();
-  const category = $("categoryFilter").value;
+  const categoryId = $("categoryFilter").value;
   const brand = $("brandFilter").value.trim().toLowerCase();
   const year = $("yearFilter").value.trim().toLowerCase();
   const model = $("modelFilter").value.trim().toLowerCase();
@@ -379,20 +471,25 @@ function filterItems() {
   const desired = $("desiredFilter").value;
   return items.filter((item) => {
     const itemName = String(item.name || "").toLowerCase();
-    return (!search || itemName.includes(search)) && (!category || item.category === category) && (!brand || item.brand.toLowerCase().includes(brand)) && (!year || item.year.toLowerCase().includes(year)) && (!model || item.model.toLowerCase().includes(model)) && (!scale || item.scale.toLowerCase().includes(scale)) && (rarity !== "rare" || item.rare) && (rarity !== "not-rare" || !item.rare) && (favorite !== "favorite" || item.favorite) && (desired !== "desired" || item.desired) && (desired !== "possessed" || !item.desired);
+    return (!search || itemName.includes(search)) && itemBelongsToCategory(item, categoryId) && (!brand || item.brand.toLowerCase().includes(brand)) && (!year || item.year.toLowerCase().includes(year)) && (!model || item.model.toLowerCase().includes(model)) && (!scale || item.scale.toLowerCase().includes(scale)) && (rarity !== "rare" || item.rare) && (rarity !== "not-rare" || !item.rare) && (favorite !== "favorite" || item.favorite) && (desired !== "desired" || item.desired) && (desired !== "possessed" || !item.desired);
   });
 }
 
 function getCatalogSelection() {
-  const filtered = filterItems();
-  const sort = $("sortSelect").value;
-  filtered.sort((a, b) => {
-    if (sort === "name") return (a.name || "").localeCompare(b.name || "");
-    if (sort === "category") return (a.category || "").localeCompare(b.category || "");
-    if (sort === "value") return Number(b.estimatedValue || 0) - Number(a.estimatedValue || 0);
-    return (b.createdAt || "").localeCompare(a.createdAt || "");
-  });
-  return filtered;
+  return sortCatalogItems(filterItems(), $("sortSelect").value);
+}
+
+function updateCatalogCategoryBadge() {
+  const badge = $("catalogCategoryActive");
+  const label = $("catalogCategoryActiveName");
+  if (!badge || !label) return;
+  const categoryId = $("categoryFilter")?.value || "";
+  if (!categoryId) {
+    badge.hidden = true;
+    return;
+  }
+  label.textContent = getCategoryNameById(categoryId) || "Categoria";
+  badge.hidden = false;
 }
 
 function renderCatalog() {
@@ -402,6 +499,7 @@ function renderCatalog() {
   box.innerHTML = filtered.length ? filtered.map(itemCard).join("") : emptyHtml();
   $("selectionCount").textContent = filtered.length;
   $("selectionValue").textContent = money(filtered.reduce((sum, i) => sum + Number(i.estimatedValue || 0), 0));
+  updateCatalogCategoryBadge();
 }
 
 function renderCategories() {
@@ -411,8 +509,8 @@ function renderCategories() {
   const top = grouped[0];
   $("topCategoryName").textContent = top?.cat || "—";
   $("topCategoryCount").textContent = top ? `${top.count} item(ns)` : "Sem dados";
-  $("categoryCards").innerHTML = grouped.length ? grouped.map(({ cat, category, count: groupLength }) => {
-    const group = items.filter((i) => i.category === cat);
+  $("categoryCards").innerHTML = grouped.length ? grouped.map(({ id, cat, category, count: groupLength }) => {
+    const group = items.filter((i) => itemBelongsToCategory(i, id));
     const total = group.reduce((sum, i) => sum + Number(i.estimatedValue || 0), 0);
     const initials = cat.split(/\s+/).slice(0, 2).map((x) => x[0]).join("").toUpperCase();
     const media = category.image
@@ -517,11 +615,13 @@ function renderStatsDashboard() {
 }
 
 function updateCategoryControls() {
-  const cats = getCategories();
+  const entries = getCategoryOptionEntries();
   const current = $("categoryFilter").value;
-  $("categoryFilter").innerHTML = '<option value="">Todas as categorias</option>' + cats.map((c) => `<option>${escapeHtml(c)}</option>`).join("");
-  $("categoryFilter").value = cats.includes(current) ? current : "";
-  $("categoryList").innerHTML = cats.map((c) => `<option value="${escapeHtml(c)}">`).join("");
+  $("categoryFilter").innerHTML = '<option value="">Todas as categorias</option>' + entries.map(({ id, name }) => `<option value="${escapeHtml(id)}">${escapeHtml(name)}</option>`).join("");
+  const validIds = new Set(entries.map((entry) => entry.id));
+  const legacyNameMatch = entries.find((entry) => entry.name === current)?.id || "";
+  $("categoryFilter").value = validIds.has(current) ? current : legacyNameMatch;
+  $("categoryList").innerHTML = entries.map(({ name }) => `<option value="${escapeHtml(name)}">`).join("");
 }
 
 function renderAll() {
@@ -602,7 +702,7 @@ function shareItem(id) {
 function printItem(id) { openDetail(id); setTimeout(() => window.print(), 250); }
 
 function buildCatalogPdfDocument(selectedItems) {
-  const selectedCategory = $("categoryFilter").value || "Todas as categorias";
+  const selectedCategory = getCategoryNameById($("categoryFilter").value) || "Todas as categorias";
   const personName = profile.name || "Seu nome";
   const profilePhoto = profile.photo || document.querySelector(".brand-logo")?.src || "";
   const appLogo = document.querySelector(".brand-logo")?.src || "";
@@ -900,8 +1000,8 @@ async function initializePersistentApp() {
 
   $("homeCategoryCards")?.addEventListener("click", (e) => {
     const card = e.target.closest(".home-category-card");
-    if (!card?.dataset.category) return;
-    openCatalogForCategory(decodeURIComponent(card.dataset.category));
+    if (!card?.dataset.categoryId) return;
+    openCatalogForCategory(card.dataset.categoryId);
   });
 
   $("itemForm").addEventListener("submit", async (e) => {

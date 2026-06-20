@@ -124,9 +124,23 @@
           <div class="selection-summary">
             <article class="info-mini"><span>Itens encontrados</span><strong id="selectionCount">0</strong></article>
             <article class="info-mini value-only"><span>Valor estimado da seleção</span><strong id="selectionValue">R$ 0</strong></article>
+            <article id="catalogCategoryActive" class="info-mini catalog-category-active" hidden>
+              <span>Categoria ativa</span>
+              <strong id="catalogCategoryActiveName">—</strong>
+            </article>
           </div>
           <div class="catalog-controls">
-            <select id="sortSelect"><option value="newest">Mais recentes</option><option value="name">Nome</option><option value="category">Categoria</option><option value="value">Maior valor</option></select>
+            <select id="sortSelect" aria-label="Ordenar catálogo">
+              <option value="newest">Adicionados recentemente</option>
+              <option value="created-asc">Adicionados há mais tempo</option>
+              <option value="name-asc">Nome: A–Z</option>
+              <option value="name-desc">Nome: Z–A</option>
+              <option value="value-asc">Preço: menor para maior</option>
+              <option value="value-desc">Preço: maior para menor</option>
+              <option value="acquired-desc">Data de aquisição: mais recente</option>
+              <option value="acquired-asc">Data de aquisição: mais antiga</option>
+              <option value="category">Categoria</option>
+            </select>
             <div class="segmented"><button id="gridBtn" class="active" type="button" aria-label="Grade">▦</button><button id="listBtn" type="button" aria-label="Lista">☷</button></div>
           </div>
         </div>
