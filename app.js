@@ -46,7 +46,6 @@ function iconSvg(type) {
 
 function setStaticIcons() {
   const map = {
-    iconCats: "box", iconDesired: "heart", iconRare: "diamond", iconFav: "star",
     quickCat: "grid", quickFilter: "sliders", quickReport: "bars", quickStats: "trend",
     bannerCatalogIcon: "grid", bannerAddIcon: "camera", bannerCategoryIcon: "box", bannerReportIcon: "bars", bannerStatsIcon: "trend",
     reportIconCategory: "grid", reportIconBrand: "box", reportIconYear: "calendar", reportIconRare: "diamond",
@@ -333,11 +332,37 @@ function recentCard(item) {
   return `<article class="recent-card" onclick="openDetail('${item.id}')"><div class="recent-photo">${img}</div><div class="recent-body"><h4>${escapeHtml(item.name || "Item sem nome")}</h4><p>${escapeHtml(sub || item.category || "Sem categoria")}</p></div></article>`;
 }
 
+function getCategoryGroups() {
+  return getCategories().map((cat) => {
+    const category = categories.find((c) => c.name.toLowerCase() === cat.toLowerCase()) || normalizeCategory({ name: cat });
+    const group = items.filter((i) => i.category === cat);
+    return { cat, category, count: group.length };
+  }).sort((a, b) => a.cat.localeCompare(b.cat, "pt-BR"));
+}
+
+function homeCategoryCard({ cat, category, count }) {
+  const initials = cat.split(/\s+/).slice(0, 2).map((x) => x[0]).join("").toUpperCase();
+  const media = category.image
+    ? `<div class="home-category-cover"><img src="${category.image}" alt="" onerror="this.hidden=true;this.nextElementSibling.hidden=false"><div class="home-category-placeholder" hidden>${escapeHtml(initials || "VM")}</div></div>`
+    : `<div class="home-category-cover"><div class="home-category-placeholder">${escapeHtml(initials || "VM")}</div></div>`;
+  return `<button type="button" class="home-category-card" data-category="${encodeURIComponent(cat)}" aria-label="Abrir catálogo de ${escapeHtml(cat)}">${media}<div class="home-category-body"><h4>${escapeHtml(cat)}</h4><span>${count} item(ns)</span></div></button>`;
+}
+
+function homeCategoriesEmptyHtml() {
+  return `<div class="empty home-categories-empty"><span class="empty-symbol">◇</span><strong>Nenhuma categoria cadastrada.</strong><p>Cadastre categorias ao adicionar itens ou pela área de Categorias.</p><button class="secondary-btn home-categories-empty-btn" type="button" data-go="categoriesView">Ir para Categorias</button></div>`;
+}
+
+function openCatalogForCategory(categoryName) {
+  if (!categoryName) return;
+  $("categoryFilter").value = categoryName;
+  showView("catalogView");
+  renderCatalog();
+}
+
 function renderHome() {
-  $("statCats").textContent = getCategories().length;
-  $("statDesired").textContent = items.filter((i) => i.desired).length;
-  $("statRare").textContent = items.filter((i) => i.rare).length;
-  $("statFav").textContent = items.filter((i) => i.favorite).length;
+  const grouped = getCategoryGroups();
+  const box = $("homeCategoryCards");
+  if (box) box.innerHTML = grouped.length ? grouped.map(homeCategoryCard).join("") : homeCategoriesEmptyHtml();
   const recent = [...items].sort((a, b) => (b.createdAt || "").localeCompare(a.createdAt || "")).slice(0, 8);
   $("recentItems").innerHTML = recent.length ? recent.map(recentCard).join("") : emptyHtml();
 }
@@ -380,22 +405,20 @@ function renderCatalog() {
 }
 
 function renderCategories() {
-  const cats = getCategories();
+  const grouped = getCategoryGroups().sort((a, b) => b.count - a.count);
+  const cats = grouped.map((g) => g.cat);
   $("categoriesTotal").textContent = cats.length;
-  const grouped = cats.map((cat) => {
-    const category = categories.find((c) => c.name.toLowerCase() === cat.toLowerCase()) || normalizeCategory({ name: cat });
-    return { cat, category, group: items.filter((i) => i.category === cat) };
-  }).sort((a, b) => b.group.length - a.group.length);
   const top = grouped[0];
   $("topCategoryName").textContent = top?.cat || "—";
-  $("topCategoryCount").textContent = top ? `${top.group.length} item(ns)` : "Sem dados";
-  $("categoryCards").innerHTML = grouped.length ? grouped.map(({ cat, category, group }) => {
+  $("topCategoryCount").textContent = top ? `${top.count} item(ns)` : "Sem dados";
+  $("categoryCards").innerHTML = grouped.length ? grouped.map(({ cat, category, count: groupLength }) => {
+    const group = items.filter((i) => i.category === cat);
     const total = group.reduce((sum, i) => sum + Number(i.estimatedValue || 0), 0);
     const initials = cat.split(/\s+/).slice(0, 2).map((x) => x[0]).join("").toUpperCase();
     const media = category.image
       ? `<div class="category-cover"><img src="${category.image}" alt="Imagem da categoria ${escapeHtml(cat)}" onerror="this.hidden=true;this.nextElementSibling.hidden=false"><div class="category-cover-placeholder" hidden>${escapeHtml(initials || "VM")}</div></div>`
       : `<div class="category-cover"><div class="category-cover-placeholder">${escapeHtml(initials || "VM")}</div></div>`;
-    return `<article class="category-card">${media}<div class="category-card-content"><div class="category-title-row"><span class="category-symbol">${escapeHtml(initials || "VM")}</span><h4>${escapeHtml(cat)}</h4></div><div class="category-meta"><div><span>Quantidade</span><strong>${group.length} item(ns)</strong></div><div><span>Valor estimado</span><strong>${money(total)}</strong></div></div><div class="category-file-summary"><span>${category.attachments.length} arquivo(s) salvo(s)</span><button type="button" onclick="openCategoryEditor('${category.id}')">Gerenciar mídia</button></div></div></article>`;
+    return `<article class="category-card">${media}<div class="category-card-content"><div class="category-title-row"><span class="category-symbol">${escapeHtml(initials || "VM")}</span><h4>${escapeHtml(cat)}</h4></div><div class="category-meta"><div><span>Quantidade</span><strong>${groupLength} item(ns)</strong></div><div><span>Valor estimado</span><strong>${money(total)}</strong></div></div><div class="category-file-summary"><span>${category.attachments.length} arquivo(s) salvo(s)</span><button type="button" onclick="openCategoryEditor('${category.id}')">Gerenciar mídia</button></div></div></article>`;
   }).join("") : emptyHtml();
 }
 
@@ -820,6 +843,7 @@ async function importBackupFile(file) {
   return true;
 }
 
+window.openCatalogForCategory = openCatalogForCategory;
 window.openDetail = openDetail;
 window.editItem = editItem;
 window.deleteItem = deleteItem;
@@ -869,7 +893,16 @@ async function initializePersistentApp() {
   setPreview();
   renderItemAttachmentList();
 
-  document.querySelectorAll("[data-go]").forEach((btn) => btn.addEventListener("click", () => showView(btn.dataset.go)));
+  document.addEventListener("click", (e) => {
+    const navBtn = e.target.closest("[data-go]");
+    if (navBtn) showView(navBtn.dataset.go);
+  });
+
+  $("homeCategoryCards")?.addEventListener("click", (e) => {
+    const card = e.target.closest(".home-category-card");
+    if (!card?.dataset.category) return;
+    openCatalogForCategory(decodeURIComponent(card.dataset.category));
+  });
 
   $("itemForm").addEventListener("submit", async (e) => {
     e.preventDefault();
