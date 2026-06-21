@@ -13,7 +13,6 @@ let categoryDraftImage = "";
 let categoryDraftAttachments = [];
 let editingCategoryId = "";
 let gridMode = "grid";
-let deferredPrompt = null;
 
 const $ = (id) => document.getElementById(id);
 const money = (value) => Number(value || 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
@@ -53,7 +52,7 @@ function setStaticIcons() {
     quickCat: "grid", quickFilter: "sliders", quickReport: "bars", quickStats: "trend",
     bannerCatalogIcon: "grid", bannerAddIcon: "camera", bannerCategoryIcon: "box", bannerReportIcon: "bars", bannerStatsIcon: "trend",
     reportIconCategory: "grid", reportIconBrand: "box", reportIconYear: "calendar", reportIconRare: "diamond",
-    backupSettingIcon: "shield", installSettingIcon: "phone", shareSettingIcon: "users"
+    backupSettingIcon: "shield"
   };
   Object.entries(map).forEach(([id, type]) => { if ($(id)) $(id).innerHTML = iconSvg(type); });
 }
@@ -1378,19 +1377,6 @@ window.openPhotoLightbox = openPhotoLightbox;
 window.openItemPhotoViewer = openItemPhotoViewer;
 window.openPhotoViewerForItem = openPhotoViewerForItem;
 window.goToViewerPhoto = goToViewerPhoto;
-
-window.addEventListener("beforeinstallprompt", (e) => {
-  e.preventDefault();
-  deferredPrompt = e;
-  const btn = $("installBtn");
-  btn.hidden = false;
-  btn.onclick = async () => {
-    btn.hidden = true;
-    deferredPrompt.prompt();
-    await deferredPrompt.userChoice;
-    deferredPrompt = null;
-  };
-});
 
 if ("serviceWorker" in navigator) {
   const getAssetVersion = () => document.querySelector('meta[name="vm-asset-version"]')?.content || "1";
