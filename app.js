@@ -14,7 +14,8 @@ let categoryDraftAttachments = [];
 let editingCategoryId = "";
 let activeCategoryDetailId = "";
 let gridMode = "grid";
-let catalogAppliedFilters = { search: "", ownership: "", categoryId: "", favorite: "" };
+let catalogAppliedFilters = { terms: [], classification: "all", dateFrom: "", dateTo: "" };
+let catalogHasSearched = false;
 
 const $ = (id) => document.getElementById(id);
 const money = (value) => Number(value || 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
@@ -93,18 +94,21 @@ function itemPhotosFromRaw(raw = {}) {
 
 function normalizeItem(raw = {}) {
   const photos = itemPhotosFromRaw(raw);
-  return {
+  const desired = !!raw.desired;
+  const item = {
     id: raw.id || uid(), name: raw.name || "", category: raw.category || "", subcategory: raw.subcategory || "",
     brand: raw.brand || "", model: raw.model || "", scale: raw.scale || "", year: raw.year || "",
     condition: raw.condition || "", paidValue: Number(raw.paidValue || 0), estimatedValue: Number(raw.estimatedValue || 0),
     acquiredAt: raw.acquiredAt || "", acquiredPlace: raw.acquiredPlace || "", serial: raw.serial || "", tags: raw.tags || "",
-    description: raw.description || "", notes: raw.notes || "", favorite: !!raw.favorite, desired: !!raw.desired, rare: !!raw.rare,
+    description: raw.description || "", notes: raw.notes || "", favorite: !!raw.favorite, desired, rare: !!raw.rare,
     photos,
     photo: photos[0] || String(raw.photo || ""),
     video: String(raw.video || ""),
     attachments: Array.isArray(raw.attachments) ? raw.attachments.map(normalizeAttachment) : [],
     updatedAt: raw.updatedAt || new Date().toISOString(), createdAt: raw.createdAt || new Date().toISOString()
   };
+  if (Object.prototype.hasOwnProperty.call(raw, "owned")) item.owned = !!raw.owned;
+  return item;
 }
 
 function categoryIdFromName(name) {
@@ -498,26 +502,113 @@ function openCatalogForCategory(categoryId) {
   openCategoryDetail(categoryId);
 }
 
+const ITEM_SEARCH_FIELDS = ["name", "description", "notes", "acquiredPlace", "condition", "category", "subcategory", "brand", "model", "scale", "year", "serial", "tags"];
+
+function stripAccents(text) {
+  return String(text || "").normalize("NFD").replace(/\p{M}/gu, "");
+}
+
+function normalizeSearchInput(input) {
+  return stripAccents(String(input || "").trim().toLowerCase()).replace(/\s+/g, " ");
+}
+
+function parseSearchTerms(input) {
+  const normalized = normalizeSearchInput(input);
+  if (!normalized) return [];
+  return normalized.split(" ").filter(Boolean);
+}
+
+function getItemSearchHaystack(item) {
+  return normalizeSearchInput(ITEM_SEARCH_FIELDS.map((field) => String(item[field] || "")).join(" "));
+}
+
+function itemMatchesSearchTerms(item, terms) {
+  if (!terms.length) return true;
+  const haystack = getItemSearchHaystack(item);
+  return terms.every((term) => haystack.includes(term));
+}
+
+function isItemOwned(item) {
+  if (Object.prototype.hasOwnProperty.call(item, "owned")) return !!item.owned;
+  return !item.desired;
+}
+
+function isItemDesired(item) {
+  return !!item.desired && !isItemOwned(item);
+}
+
+function itemMatchesClassification(item, classification) {
+  switch (classification) {
+    case "favorite": return !!item.favorite;
+    case "desired": return isItemDesired(item);
+    case "owned": return isItemOwned(item);
+    case "rare": return !!item.rare;
+    case "all":
+    default: return true;
+  }
+}
+
+function parseLocalDateStart(dateStr) {
+  const parts = String(dateStr || "").split("-").map(Number);
+  if (parts.length !== 3 || parts.some((part) => !Number.isFinite(part))) return null;
+  return new Date(parts[0], parts[1] - 1, parts[2], 0, 0, 0, 0);
+}
+
+function parseLocalDateEnd(dateStr) {
+  const parts = String(dateStr || "").split("-").map(Number);
+  if (parts.length !== 3 || parts.some((part) => !Number.isFinite(part))) return null;
+  return new Date(parts[0], parts[1] - 1, parts[2], 23, 59, 59, 999);
+}
+
+function getItemCreatedTime(item) {
+  const raw = item.createdAt;
+  if (!raw) return null;
+  const time = Date.parse(raw);
+  return Number.isFinite(time) ? time : null;
+}
+
+function itemMatchesPeriod(item, dateFrom, dateTo) {
+  if (!dateFrom && !dateTo) return true;
+  const created = getItemCreatedTime(item);
+  if (created === null) return false;
+  if (dateFrom) {
+    const start = parseLocalDateStart(dateFrom);
+    if (!start || created < start.getTime()) return false;
+  }
+  if (dateTo) {
+    const end = parseLocalDateEnd(dateTo);
+    if (!end || created > end.getTime()) return false;
+  }
+  return true;
+}
+
 function readCatalogFormFilters() {
   return {
-    search: $("searchInput").value.trim().toLowerCase(),
-    ownership: $("ownershipFilter").value,
-    categoryId: $("categoryFilter").value,
-    favorite: $("favoriteFilter").value
+    terms: parseSearchTerms($("catalogTermsInput")?.value),
+    classification: $("classificationFilter")?.value || "all",
+    dateFrom: $("catalogDateFrom")?.value || "",
+    dateTo: $("catalogDateTo")?.value || ""
   };
 }
 
 function applyCatalogFilters() {
-  catalogAppliedFilters = readCatalogFormFilters();
+  const form = readCatalogFormFilters();
+  if (form.dateFrom && form.dateTo && form.dateFrom > form.dateTo) {
+    alert("A data inicial não pode ser posterior à data final.");
+    return;
+  }
+  catalogAppliedFilters = form;
+  catalogHasSearched = true;
   renderCatalog();
 }
 
-function resetCatalogFilters({ render = true } = {}) {
-  if ($("searchInput")) $("searchInput").value = "";
-  if ($("ownershipFilter")) $("ownershipFilter").value = "";
-  if ($("categoryFilter")) $("categoryFilter").value = "";
-  if ($("favoriteFilter")) $("favoriteFilter").value = "";
-  catalogAppliedFilters = { search: "", ownership: "", categoryId: "", favorite: "" };
+function resetCatalogFilters({ render = true, clearResults = true } = {}) {
+  if ($("catalogTermsInput")) $("catalogTermsInput").value = "";
+  if ($("classificationFilter")) $("classificationFilter").value = "all";
+  if ($("catalogDateFrom")) $("catalogDateFrom").value = "";
+  if ($("catalogDateTo")) $("catalogDateTo").value = "";
+  catalogAppliedFilters = { terms: [], classification: "all", dateFrom: "", dateTo: "" };
+  if (clearResults) catalogHasSearched = false;
   if (render) renderCatalog();
 }
 
@@ -531,34 +622,33 @@ function renderHome() {
 
 function catalogListEmptyHtml() {
   if (!items.length) return emptyHtml();
-  return '<div class="empty"><span class="empty-symbol">◇</span><strong>Nenhum item encontrado com os filtros selecionados.</strong><p>Ajuste a busca, a categoria ou os filtros e toque em Pesquisar.</p></div>';
+  if (!catalogHasSearched) {
+    return '<div class="empty"><span class="empty-symbol">⌕</span><strong>Defina os critérios e toque em Pesquisar.</strong><p>Use Termos, Classificação e Período para localizar itens do acervo.</p></div>';
+  }
+  return '<div class="empty"><span class="empty-symbol">◇</span><strong>Nenhum item encontrado para os critérios selecionados.</strong><p>Ajuste os filtros e toque em Pesquisar novamente.</p></div>';
 }
 
 function filterItems() {
-  const { search, ownership, categoryId, favorite } = catalogAppliedFilters;
-  return items.filter((item) => {
-    const itemName = String(item.name || "").toLowerCase();
-    const isFavorite = !!item.favorite;
-    const isDesired = !!item.desired;
-    const ownershipMatch = !ownership
-      || (ownership === "owned" && !isDesired)
-      || (ownership === "desired" && isDesired);
-    return (!search || itemName.includes(search))
-      && itemBelongsToCategory(item, categoryId)
-      && ownershipMatch
-      && (favorite !== "favorite" || isFavorite)
-      && (favorite !== "not-favorite" || !isFavorite);
-  });
+  const { terms, classification, dateFrom, dateTo } = catalogAppliedFilters;
+  return items.filter((item) => itemMatchesSearchTerms(item, terms)
+    && itemMatchesClassification(item, classification)
+    && itemMatchesPeriod(item, dateFrom, dateTo));
 }
 
 function getCatalogSelection() {
-  return sortCatalogItems(filterItems(), $("sortSelect").value);
+  return sortCatalogItems(filterItems(), "newest");
 }
 
 function renderCatalog() {
-  const filtered = getCatalogSelection();
   const box = $("catalogItems");
   box.className = `cards-grid ${gridMode === "list" ? "item-list" : ""}`;
+  if (!catalogHasSearched) {
+    box.innerHTML = catalogListEmptyHtml();
+    $("selectionCount").textContent = "0";
+    $("selectionValue").textContent = money(0);
+    return;
+  }
+  const filtered = getCatalogSelection();
   box.innerHTML = filtered.length ? filtered.map(itemCard).join("") : catalogListEmptyHtml();
   $("selectionCount").textContent = filtered.length;
   $("selectionValue").textContent = money(filtered.reduce((sum, i) => sum + Number(i.estimatedValue || 0), 0));
@@ -759,11 +849,6 @@ function renderStatsDashboard() {
 
 function updateCategoryControls() {
   const entries = getCategoryOptionEntries();
-  const current = $("categoryFilter").value;
-  $("categoryFilter").innerHTML = '<option value="">Todas as categorias</option>' + entries.map(({ id, name }) => `<option value="${escapeHtml(id)}">${escapeHtml(name)}</option>`).join("");
-  const validIds = new Set(entries.map((entry) => entry.id));
-  const legacyNameMatch = entries.find((entry) => entry.name === current)?.id || "";
-  $("categoryFilter").value = validIds.has(current) ? current : legacyNameMatch;
   $("categoryList").innerHTML = entries.map(({ name }) => `<option value="${escapeHtml(name)}">`).join("");
 }
 
@@ -1117,12 +1202,13 @@ function clearForm() {
 function readForm() {
   const existing = items.find((i) => i.id === $("editingId").value);
   const photos = [...currentPhotos];
+  const desired = $("desired").checked;
   return normalizeItem({
     id: $("editingId").value || uid(), name: $("name").value.trim(), category: $("category").value.trim(), subcategory: $("subcategory").value.trim(),
     brand: $("brand").value.trim(), model: existing?.model || "", scale: existing?.scale || "", year: $("year").value.trim(), condition: $("condition").value,
     paidValue: $("paidValue").value, estimatedValue: $("estimatedValue").value, acquiredAt: $("acquiredAt").value, acquiredPlace: $("acquiredPlace").value.trim(),
     serial: $("serial").value.trim(), tags: $("tags").value.trim(), description: $("description").value.trim(), notes: $("notes").value.trim(),
-    favorite: $("favorite").checked, desired: $("desired").checked, rare: $("rare").checked,
+    favorite: $("favorite").checked, desired, rare: $("rare").checked,
     photos, photo: photos[0] || "", video: currentVideo,
     attachments: currentItemAttachments.map(normalizeAttachment),
     updatedAt: new Date().toISOString(), createdAt: existing?.createdAt || new Date().toISOString()
@@ -1236,16 +1322,30 @@ function printItem(id) {
   setTimeout(() => window.print(), 250);
 }
 
+function formatDisplayDate(dateStr) {
+  const parts = String(dateStr || "").split("-").map(Number);
+  if (parts.length !== 3 || parts.some((part) => !Number.isFinite(part))) return String(dateStr || "");
+  return new Date(parts[0], parts[1] - 1, parts[2]).toLocaleDateString("pt-BR");
+}
+
 function buildCatalogPdfDocument(selectedItems) {
-  const selectedCategory = getCategoryNameById(catalogAppliedFilters.categoryId) || "Todas as categorias";
   const personName = profile.name || "Seu nome";
   const profilePhoto = profile.photo || document.querySelector(".brand-logo")?.src || "";
   const appLogo = document.querySelector(".brand-logo")?.src || "";
   const generatedAt = new Date().toLocaleDateString("pt-BR");
-  const favoriteLabel = catalogAppliedFilters.favorite === "favorite" ? "Somente favoritos" : catalogAppliedFilters.favorite === "not-favorite" ? "Somente não favoritos" : "Todos";
-  const ownershipLabel = catalogAppliedFilters.ownership === "owned" ? "Somente possuídos" : catalogAppliedFilters.ownership === "desired" ? "Somente desejados" : "Possuídos e desejados";
-  const searchLabel = catalogAppliedFilters.search || "Todos os nomes";
-  const sortLabel = $("sortSelect").selectedOptions?.[0]?.textContent || "Mais recentes";
+  const termsLabel = catalogAppliedFilters.terms.length ? catalogAppliedFilters.terms.join(" ") : "Todos os termos";
+  const classificationLabels = {
+    all: "Todos",
+    favorite: "Favoritos",
+    desired: "Desejados",
+    owned: "Possuídos",
+    rare: "Raros"
+  };
+  const classificationLabel = classificationLabels[catalogAppliedFilters.classification] || "Todos";
+  const periodLabel = catalogAppliedFilters.dateFrom || catalogAppliedFilters.dateTo
+    ? `${catalogAppliedFilters.dateFrom ? formatDisplayDate(catalogAppliedFilters.dateFrom) : "—"} até ${catalogAppliedFilters.dateTo ? formatDisplayDate(catalogAppliedFilters.dateTo) : "—"}`
+    : "Todo o período";
+  const sortLabel = "Adicionados recentemente";
 
   const rows = selectedItems.map((item, index) => {
     const image = item.photo
@@ -1276,7 +1376,7 @@ function buildCatalogPdfDocument(selectedItems) {
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width,initial-scale=1">
-    <title>Catálogo VM Collection - ${escapeHtml(selectedCategory)}</title>
+    <title>Catálogo VM Collection - Localizar itens</title>
     <style>
       @page{size:A4;margin:0}
       *{box-sizing:border-box}
@@ -1328,17 +1428,17 @@ function buildCatalogPdfDocument(selectedItems) {
         <div class="cover-card">
           <div class="cover-profile"><img src="${profilePhoto}" alt="Foto de ${escapeHtml(personName)}"></div>
           <div class="cover-kicker">Catálogo personalizado</div>
-          <h1>${escapeHtml(selectedCategory)}</h1>
+          <h1>Localizar itens</h1>
           <p class="cover-person">${escapeHtml(personName)}</p>
           <div class="category-box">${selectedItems.length} item(ns)</div>
-          <div class="cover-meta">Busca: ${escapeHtml(searchLabel)}<br>Possuídos/desejados: ${escapeHtml(ownershipLabel)}<br>Favoritos: ${escapeHtml(favoriteLabel)}<br>Ordem: ${escapeHtml(sortLabel)}<br>Gerado em ${generatedAt}</div>
+          <div class="cover-meta">Termos: ${escapeHtml(termsLabel)}<br>Classificação: ${escapeHtml(classificationLabel)}<br>Período: ${escapeHtml(periodLabel)}<br>Ordem: ${escapeHtml(sortLabel)}<br>Gerado em ${generatedAt}</div>
         </div>
       </div>
       <div class="cover-footer">VM Collection - Seu acervo digital</div>
     </section>
     <main class="catalog-pages">
       <header class="list-header">
-        <div class="list-header-left"><img src="${appLogo}" alt="Logo"><div><h2>${escapeHtml(selectedCategory)}</h2><p>${escapeHtml(personName)} - Catálogo em formato de lista</p></div></div>
+        <div class="list-header-left"><img src="${appLogo}" alt="Logo"><div><h2>Localizar itens</h2><p>${escapeHtml(personName)} - Catálogo em formato de lista</p></div></div>
         <div class="list-count"><span>Total da seleção</span><strong>${selectedItems.length}</strong></div>
       </header>
       ${rows}
@@ -1349,9 +1449,13 @@ function buildCatalogPdfDocument(selectedItems) {
 }
 
 function generateCatalogPdf() {
+  if (!catalogHasSearched) {
+    alert("Toque em Pesquisar antes de gerar o catálogo em PDF.");
+    return;
+  }
   const selectedItems = getCatalogSelection();
   if (!selectedItems.length) {
-    alert("Nenhum item encontrado com os filtros atuais para gerar o catálogo.");
+    alert("Nenhum item encontrado para os critérios selecionados.");
     return;
   }
   const printWindow = window.open("", "_blank");
@@ -1648,12 +1752,11 @@ async function initializePersistentApp() {
   $("removeMediaBtn").addEventListener("click", () => { currentPhotos = []; currentVideo = ""; renderMediaSection(); });
   $("clearFiltersBtn").addEventListener("click", clearFilters);
   $("searchCatalogBtn").addEventListener("click", applyCatalogFilters);
-  $("searchInput")?.addEventListener("keydown", (e) => {
+  $("catalogTermsInput")?.addEventListener("keydown", (e) => {
     if (e.key === "Enter") { e.preventDefault(); applyCatalogFilters(); }
   });
   $("generateCatalogPdfBtn").addEventListener("click", generateCatalogPdf);
 
-  $("sortSelect").addEventListener("change", renderCatalog);
   $("gridBtn").addEventListener("click", () => { gridMode = "grid"; $("gridBtn").classList.add("active"); $("listBtn").classList.remove("active"); renderCatalog(); });
   $("listBtn").addEventListener("click", () => { gridMode = "list"; $("listBtn").classList.add("active"); $("gridBtn").classList.remove("active"); renderCatalog(); });
 

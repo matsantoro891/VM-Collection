@@ -94,33 +94,30 @@
             <button id="clearFiltersBtn" class="text-action" type="button">Limpar filtros</button>
           </div>
           <div class="catalog-filters">
-            <label class="catalog-filter-field">
-              Buscar por nome
+            <label class="catalog-filter-field catalog-filter-terms">
+              Termos
               <div class="catalog-search-wrap">
                 <span class="search-symbol">⌕</span>
-                <input id="searchInput" type="search" placeholder="Digite o nome do item" aria-label="Buscar item por nome" />
+                <input id="catalogTermsInput" type="search" placeholder="Digite um nome, observação ou outro termo" aria-label="Termos de pesquisa" autocomplete="off" />
               </div>
             </label>
             <label class="catalog-filter-field">
-              Possuídos e desejados
-              <select id="ownershipFilter" aria-label="Filtrar por possuídos e desejados">
-                <option value="">Possuídos e desejados</option>
-                <option value="owned">Somente possuídos</option>
-                <option value="desired">Somente desejados</option>
+              Classificação
+              <select id="classificationFilter" aria-label="Classificação">
+                <option value="all">Todos</option>
+                <option value="favorite">Favoritos</option>
+                <option value="desired">Desejados</option>
+                <option value="owned">Possuídos</option>
+                <option value="rare">Raros</option>
               </select>
             </label>
-            <label class="catalog-filter-field">
-              Categoria
-              <select id="categoryFilter" aria-label="Filtrar por categoria"><option value="">Todas as categorias</option></select>
-            </label>
-            <label class="catalog-filter-field">
-              Favorito
-              <select id="favoriteFilter" aria-label="Filtrar por favorito">
-                <option value="">Todos</option>
-                <option value="favorite">Somente favoritos</option>
-                <option value="not-favorite">Somente não favoritos</option>
-              </select>
-            </label>
+            <fieldset class="catalog-filter-field catalog-period-field">
+              <legend>Período</legend>
+              <div class="catalog-period-grid">
+                <label>Data inicial<input id="catalogDateFrom" type="date" aria-label="Data inicial do cadastro" /></label>
+                <label>Data final<input id="catalogDateTo" type="date" aria-label="Data final do cadastro" /></label>
+              </div>
+            </fieldset>
           </div>
           <div class="catalog-search-actions">
             <button id="searchCatalogBtn" class="primary-btn" type="button">Pesquisar</button>
@@ -143,17 +140,6 @@
             <article class="info-mini value-only"><span>Valor estimado da seleção</span><strong id="selectionValue">R$ 0</strong></article>
           </div>
           <div class="catalog-controls">
-            <select id="sortSelect" aria-label="Ordenar catálogo">
-              <option value="newest">Adicionados recentemente</option>
-              <option value="created-asc">Adicionados há mais tempo</option>
-              <option value="name-asc">Nome: A–Z</option>
-              <option value="name-desc">Nome: Z–A</option>
-              <option value="value-asc">Preço: menor para maior</option>
-              <option value="value-desc">Preço: maior para menor</option>
-              <option value="acquired-desc">Data de aquisição: mais recente</option>
-              <option value="acquired-asc">Data de aquisição: mais antiga</option>
-              <option value="category">Categoria</option>
-            </select>
             <div class="segmented"><button id="gridBtn" class="active" type="button" aria-label="Grade">▦</button><button id="listBtn" type="button" aria-label="Lista">☷</button></div>
           </div>
         </div>
