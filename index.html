@@ -82,8 +82,8 @@
         <div class="premium-page-banner catalog-banner">
           <div class="page-banner-copy">
             <span class="eyebrow">SEU ACERVO</span>
-            <h2>Catálogo</h2>
-            <p>Encontre rapidamente qualquer item da sua coleção.</p>
+            <h2>Localizar itens</h2>
+            <p>Pesquise em todo o acervo com filtros combinados.</p>
           </div>
           <div class="banner-icon" id="bannerCatalogIcon"></div>
         </div>
@@ -102,6 +102,14 @@
               </div>
             </label>
             <label class="catalog-filter-field">
+              Possuídos e desejados
+              <select id="ownershipFilter" aria-label="Filtrar por possuídos e desejados">
+                <option value="">Possuídos e desejados</option>
+                <option value="owned">Somente possuídos</option>
+                <option value="desired">Somente desejados</option>
+              </select>
+            </label>
+            <label class="catalog-filter-field">
               Categoria
               <select id="categoryFilter" aria-label="Filtrar por categoria"><option value="">Todas as categorias</option></select>
             </label>
@@ -113,6 +121,9 @@
                 <option value="not-favorite">Somente não favoritos</option>
               </select>
             </label>
+          </div>
+          <div class="catalog-search-actions">
+            <button id="searchCatalogBtn" class="primary-btn" type="button">Pesquisar</button>
           </div>
           <div class="pdf-action-row">
             <div>
@@ -130,10 +141,6 @@
           <div class="selection-summary">
             <article class="info-mini"><span>Itens encontrados</span><strong id="selectionCount">0</strong></article>
             <article class="info-mini value-only"><span>Valor estimado da seleção</span><strong id="selectionValue">R$ 0</strong></article>
-            <article id="catalogCategoryActive" class="info-mini catalog-category-active" hidden>
-              <span>Categoria ativa</span>
-              <strong id="catalogCategoryActiveName">—</strong>
-            </article>
           </div>
           <div class="catalog-controls">
             <select id="sortSelect" aria-label="Ordenar catálogo">
@@ -257,7 +264,10 @@
           <article class="metric-card dark-metric"><span>Categorias cadastradas</span><strong id="categoriesTotal">0</strong></article>
           <article class="metric-card"><span>Categoria com mais itens</span><strong id="topCategoryName">—</strong><small id="topCategoryCount">Sem dados</small></article>
         </div>
-        <div class="section-title with-action"><h3>Suas categorias</h3><span class="category-help">Toque em “Gerenciar mídia” para anexar imagem ou arquivos.</span></div>
+        <div class="section-title with-action">
+          <h3>Suas categorias</h3>
+          <button id="createCategoryBtn" class="primary-btn" type="button">Nova categoria</button>
+        </div>
         <div id="categoryCards" class="category-grid empty-state"></div>
       </section>
 
@@ -357,34 +367,38 @@
 
       <!-- DETALHES -->
       <section id="detailView" class="view">
-        <button class="ghost-btn back-btn" data-go="catalogView" type="button">← Voltar ao catálogo</button>
+        <button class="ghost-btn back-btn" data-go="catalogView" type="button">← Voltar</button>
         <div id="detailContent"></div>
       </section>
     </main>
 
     <nav class="bottom-nav" aria-label="Menu principal">
-      <button class="nav-item active" data-go="homeView" type="button"><span class="nav-ico">⌂</span><span>Início</span></button>
-      <button class="nav-item" data-go="catalogView" type="button"><span class="nav-ico">▦</span><span>Catálogo</span></button>
+      <button class="nav-item active" data-go="homeView" type="button"><span class="nav-ico" id="navHomeIcon"></span><span>Início</span></button>
+      <button class="nav-item" data-go="catalogView" type="button"><span class="nav-ico" id="navSearchIcon"></span><span>Localizar itens</span></button>
       <button class="nav-item add-nav" data-go="addView" type="button"><span class="nav-ico plus-nav">+</span><span>Adicionar</span></button>
-      <button class="nav-item" data-go="profileView" type="button"><span class="nav-ico">◌</span><span>Perfil</span></button>
+      <button class="nav-item" data-go="categoriesView" type="button"><span class="nav-ico" id="navCategoryIcon"></span><span>Categorias</span></button>
+      <button class="nav-item" data-go="profileView" type="button"><span class="nav-ico" id="navProfileIcon"></span><span>Perfil</span></button>
     </nav>
   </div>
 
   <dialog id="categoryDialog" class="media-dialog">
     <form id="categoryMediaForm" class="dialog-card category-media-form" method="dialog">
       <div class="dialog-title-row">
-        <div><span class="panel-kicker">CATEGORIA</span><h3 id="categoryDialogTitle">Gerenciar mídia</h3></div>
+        <div><span class="panel-kicker">CATEGORIA</span><h3 id="categoryDialogTitle">Nova categoria</h3></div>
         <button id="closeCategoryDialogBtn" class="ghost-btn" type="button">Fechar</button>
       </div>
       <input id="categoryEditingId" type="hidden" />
+      <label class="field-wide">Nome da categoria<input id="categoryNameInput" required placeholder="Ex: Miniaturas, Relógios..." /></label>
       <div class="category-editor-grid">
         <div>
-          <div id="categoryImagePreview" class="category-image-preview"><span>Sem imagem</span></div>
-          <label class="secondary-btn category-image-button">Escolher imagem<input id="categoryImageInput" type="file" accept="image/*" hidden /></label>
-          <button id="removeCategoryImageBtn" class="text-action" type="button">Remover imagem</button>
+          <div id="categoryImagePreview" class="category-image-preview"><span>Sem capa</span></div>
+          <button type="button" class="category-cover-btn" id="categoryCoverBtn" aria-label="Selecionar foto de capa da categoria" title="Selecionar foto de capa da categoria">
+            <span id="categoryCoverBtnIcon" aria-hidden="true"></span>
+          </button>
+          <input id="categoryImageInput" type="file" accept="image/*" hidden />
+          <button id="removeCategoryImageBtn" class="text-action" type="button">Remover capa</button>
         </div>
         <div>
-          <p class="category-editor-help">A imagem e os arquivos serão gravados em IndexedDB, sem depender de links temporários.</p>
           <label class="secondary-btn persistent-file-button">Anexar arquivos à categoria
             <input id="categoryFilesInput" type="file" multiple accept="image/*,.pdf,.doc,.docx,.xls,.xlsx,.txt,.zip" hidden />
           </label>
@@ -395,6 +409,25 @@
         <button id="saveCategoryMediaBtn" class="primary-btn" type="submit">Salvar categoria</button>
       </div>
     </form>
+  </dialog>
+
+  <dialog id="categoryDetailDialog" class="category-detail-dialog">
+    <div class="dialog-card category-detail-card">
+      <div class="dialog-title-row">
+        <div><span class="panel-kicker">CATEGORIA</span><h3 id="categoryDetailTitle">Categoria</h3></div>
+        <button id="closeCategoryDetailBtn" class="ghost-btn" type="button">Fechar</button>
+      </div>
+      <div id="categoryDetailCover" class="category-detail-cover"></div>
+      <div class="category-detail-summary">
+        <article class="info-mini"><span>Itens</span><strong id="categoryDetailCount">0</strong></article>
+        <article class="info-mini"><span>Valor estimado</span><strong id="categoryDetailValue">R$ 0</strong></article>
+      </div>
+      <div class="category-detail-actions">
+        <button id="categoryDetailAddBtn" class="primary-btn" type="button">Adicionar item</button>
+        <button id="categoryDetailEditBtn" class="secondary-btn" type="button">Editar categoria</button>
+      </div>
+      <div id="categoryDetailItems" class="category-detail-items cards-grid"></div>
+    </div>
   </dialog>
 
   <dialog id="mediaMenuDialog" class="media-menu-dialog">

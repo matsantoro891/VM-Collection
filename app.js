@@ -13,6 +13,7 @@ let categoryDraftImage = "";
 let categoryDraftAttachments = [];
 let editingCategoryId = "";
 let gridMode = "grid";
+let catalogAppliedFilters = { search: "", ownership: "", categoryId: "", favorite: "" };
 
 const $ = (id) => document.getElementById(id);
 const money = (value) => Number(value || 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
@@ -42,7 +43,9 @@ function iconSvg(type) {
     shield: `<svg viewBox="0 0 24 24"><path ${c} d="M12 3 4 6v6c0 5 3.5 8 8 9 4.5-1 8-4 8-9V6l-8-3Z"/><path ${c} d="m9 12 2 2 4-5"/></svg>`,
     phone: `<svg viewBox="0 0 24 24"><rect ${c} x="6" y="2" width="12" height="20" rx="3"/><path ${c} d="M10 18h4"/></svg>`,
     users: `<svg viewBox="0 0 24 24"><circle ${c} cx="9" cy="8" r="3"/><circle ${c} cx="17" cy="9" r="2.5"/><path ${c} d="M3 20a6 6 0 0 1 12 0m0-4a5 5 0 0 1 6 4"/></svg>`,
-    calendar: `<svg viewBox="0 0 24 24"><rect ${c} x="3" y="5" width="18" height="16" rx="2"/><path ${c} d="M7 3v4m10-4v4M3 10h18"/></svg>`
+    calendar: `<svg viewBox="0 0 24 24"><rect ${c} x="3" y="5" width="18" height="16" rx="2"/><path ${c} d="M7 3v4m10-4v4M3 10h18"/></svg>`,
+    search: `<svg viewBox="0 0 24 24"><circle ${c} cx="11" cy="11" r="6"/><path ${c} d="m16.5 16.5 4 4"/></svg>`,
+    home: `<svg viewBox="0 0 24 24"><path ${c} d="M4 10.5 12 4l8 6.5V20a1 1 0 0 1-1 1h-5v-6H10v6H5a1 1 0 0 1-1-1v-9.5Z"/></svg>`
   };
   return icons[type] || "";
 }
@@ -52,7 +55,9 @@ function setStaticIcons() {
     quickCat: "grid", quickFilter: "sliders", quickReport: "bars", quickStats: "trend",
     bannerCatalogIcon: "grid", bannerAddIcon: "camera", bannerCategoryIcon: "box", bannerReportIcon: "bars", bannerStatsIcon: "trend",
     reportIconCategory: "grid", reportIconBrand: "box", reportIconYear: "calendar", reportIconRare: "diamond",
-    backupSettingIcon: "shield"
+    backupSettingIcon: "shield",
+    navHomeIcon: "home", navSearchIcon: "search", navCategoryIcon: "grid", navProfileIcon: "profile",
+    categoryCoverBtnIcon: "camera"
   };
   Object.entries(map).forEach(([id, type]) => { if ($(id)) $(id).innerHTML = iconSvg(type); });
 }
@@ -432,11 +437,14 @@ function removeCategoryDraftAttachment(id) {
   renderCategoryAttachmentList();
 }
 
-function showView(id) {
+function showView(id, options = {}) {
   document.querySelectorAll(".view").forEach((v) => v.classList.toggle("active", v.id === id));
   document.querySelectorAll(".nav-item").forEach((b) => b.classList.toggle("active", b.dataset.go === id));
+  if (id === "catalogView" && options.resetCatalogFilters) resetCatalogFilters({ render: false });
   if (id === "reportsView") renderReports();
   if (id === "statsView") renderStatsDashboard();
+  if (id === "categoriesView") renderCategories();
+  if (id === "catalogView") renderCatalog();
   window.scrollTo({ top: 0, behavior: "smooth" });
 }
 
@@ -478,7 +486,7 @@ function homeCategoryCard({ id, cat, category, count }) {
   const media = category.image
     ? `<div class="home-category-cover"><img src="${category.image}" alt="" onerror="this.hidden=true;this.nextElementSibling.hidden=false"><div class="home-category-placeholder" hidden>${escapeHtml(initials || "VM")}</div></div>`
     : `<div class="home-category-cover"><div class="home-category-placeholder">${escapeHtml(initials || "VM")}</div></div>`;
-  return `<button type="button" class="home-category-card" data-category-id="${escapeHtml(id)}" aria-label="Abrir catálogo de ${escapeHtml(cat)}">${media}<div class="home-category-body"><h4>${escapeHtml(cat)}</h4><span>${count} item(ns)</span></div></button>`;
+  return `<button type="button" class="home-category-card" data-category-id="${escapeHtml(id)}" aria-label="Abrir categoria ${escapeHtml(cat)}">${media}<div class="home-category-body"><h4>${escapeHtml(cat)}</h4><span>${count} item(ns)</span></div></button>`;
 }
 
 function homeCategoriesEmptyHtml() {
@@ -486,10 +494,30 @@ function homeCategoriesEmptyHtml() {
 }
 
 function openCatalogForCategory(categoryId) {
-  if (!categoryId) return;
-  $("categoryFilter").value = categoryId;
-  showView("catalogView");
+  openCategoryDetail(categoryId);
+}
+
+function readCatalogFormFilters() {
+  return {
+    search: $("searchInput").value.trim().toLowerCase(),
+    ownership: $("ownershipFilter").value,
+    categoryId: $("categoryFilter").value,
+    favorite: $("favoriteFilter").value
+  };
+}
+
+function applyCatalogFilters() {
+  catalogAppliedFilters = readCatalogFormFilters();
   renderCatalog();
+}
+
+function resetCatalogFilters({ render = true } = {}) {
+  if ($("searchInput")) $("searchInput").value = "";
+  if ($("ownershipFilter")) $("ownershipFilter").value = "";
+  if ($("categoryFilter")) $("categoryFilter").value = "";
+  if ($("favoriteFilter")) $("favoriteFilter").value = "";
+  catalogAppliedFilters = { search: "", ownership: "", categoryId: "", favorite: "" };
+  if (render) renderCatalog();
 }
 
 function renderHome() {
@@ -502,18 +530,21 @@ function renderHome() {
 
 function catalogListEmptyHtml() {
   if (!items.length) return emptyHtml();
-  return '<div class="empty"><span class="empty-symbol">◇</span><strong>Nenhum item encontrado com os filtros selecionados.</strong><p>Ajuste a busca, a categoria ou o filtro de favoritos.</p></div>';
+  return '<div class="empty"><span class="empty-symbol">◇</span><strong>Nenhum item encontrado com os filtros selecionados.</strong><p>Ajuste a busca, a categoria ou os filtros e toque em Pesquisar.</p></div>';
 }
 
 function filterItems() {
-  const search = $("searchInput").value.trim().toLowerCase();
-  const categoryId = $("categoryFilter").value;
-  const favorite = $("favoriteFilter").value;
+  const { search, ownership, categoryId, favorite } = catalogAppliedFilters;
   return items.filter((item) => {
     const itemName = String(item.name || "").toLowerCase();
     const isFavorite = !!item.favorite;
+    const isDesired = !!item.desired;
+    const ownershipMatch = !ownership
+      || (ownership === "owned" && !isDesired)
+      || (ownership === "desired" && isDesired);
     return (!search || itemName.includes(search))
       && itemBelongsToCategory(item, categoryId)
+      && ownershipMatch
       && (favorite !== "favorite" || isFavorite)
       && (favorite !== "not-favorite" || !isFavorite);
   });
@@ -523,19 +554,6 @@ function getCatalogSelection() {
   return sortCatalogItems(filterItems(), $("sortSelect").value);
 }
 
-function updateCatalogCategoryBadge() {
-  const badge = $("catalogCategoryActive");
-  const label = $("catalogCategoryActiveName");
-  if (!badge || !label) return;
-  const categoryId = $("categoryFilter")?.value || "";
-  if (!categoryId) {
-    badge.hidden = true;
-    return;
-  }
-  label.textContent = getCategoryNameById(categoryId) || "Categoria";
-  badge.hidden = false;
-}
-
 function renderCatalog() {
   const filtered = getCatalogSelection();
   const box = $("catalogItems");
@@ -543,7 +561,6 @@ function renderCatalog() {
   box.innerHTML = filtered.length ? filtered.map(itemCard).join("") : catalogListEmptyHtml();
   $("selectionCount").textContent = filtered.length;
   $("selectionValue").textContent = money(filtered.reduce((sum, i) => sum + Number(i.estimatedValue || 0), 0));
-  updateCatalogCategoryBadge();
 }
 
 function renderCategories() {
@@ -558,10 +575,22 @@ function renderCategories() {
     const total = group.reduce((sum, i) => sum + Number(i.estimatedValue || 0), 0);
     const initials = cat.split(/\s+/).slice(0, 2).map((x) => x[0]).join("").toUpperCase();
     const media = category.image
-      ? `<div class="category-cover"><img src="${category.image}" alt="Imagem da categoria ${escapeHtml(cat)}" onerror="this.hidden=true;this.nextElementSibling.hidden=false"><div class="category-cover-placeholder" hidden>${escapeHtml(initials || "VM")}</div></div>`
+      ? `<div class="category-cover"><img src="${category.image}" alt="Capa da categoria ${escapeHtml(cat)}" onerror="this.hidden=true;this.nextElementSibling.hidden=false"><div class="category-cover-placeholder" hidden>${escapeHtml(initials || "VM")}</div></div>`
       : `<div class="category-cover"><div class="category-cover-placeholder">${escapeHtml(initials || "VM")}</div></div>`;
-    return `<article class="category-card">${media}<div class="category-card-content"><div class="category-title-row"><span class="category-symbol">${escapeHtml(initials || "VM")}</span><h4>${escapeHtml(cat)}</h4></div><div class="category-meta"><div><span>Quantidade</span><strong>${groupLength} item(ns)</strong></div><div><span>Valor estimado</span><strong>${money(total)}</strong></div></div><div class="category-file-summary"><span>${category.attachments.length} arquivo(s) salvo(s)</span><button type="button" onclick="openCategoryEditor('${category.id}')">Gerenciar mídia</button></div></div></article>`;
+    return `<article class="category-card">${media}<div class="category-card-content"><div class="category-title-row"><span class="category-symbol">${escapeHtml(initials || "VM")}</span><h4>${escapeHtml(cat)}</h4></div><div class="category-meta"><div><span>Quantidade</span><strong>${groupLength} item(ns)</strong></div><div><span>Valor estimado</span><strong>${money(total)}</strong></div></div><div class="category-card-actions"><button type="button" class="secondary-btn" onclick="openCategoryDetail('${category.id}')">Abrir</button><button type="button" class="primary-btn" onclick="addItemFromCategory('${category.id}')">Adicionar item</button><button type="button" class="text-action" onclick="openCategoryEditor('${category.id}')">Editar</button></div></div></article>`;
   }).join("") : emptyHtml();
+}
+
+function openCategoryCreator() {
+  editingCategoryId = "";
+  categoryDraftImage = "";
+  categoryDraftAttachments = [];
+  if ($("categoryEditingId")) $("categoryEditingId").value = "";
+  if ($("categoryNameInput")) $("categoryNameInput").value = "";
+  if ($("categoryDialogTitle")) $("categoryDialogTitle").textContent = "Nova categoria";
+  renderCategoryImagePreview();
+  renderCategoryAttachmentList();
+  $("categoryDialog")?.showModal();
 }
 
 function openCategoryEditor(id) {
@@ -570,32 +599,91 @@ function openCategoryEditor(id) {
   editingCategoryId = category.id;
   categoryDraftImage = category.image || "";
   categoryDraftAttachments = (category.attachments || []).map(normalizeAttachment);
-  $("categoryEditingId").value = category.id;
-  $("categoryDialogTitle").textContent = category.name;
+  if ($("categoryEditingId")) $("categoryEditingId").value = category.id;
+  if ($("categoryNameInput")) $("categoryNameInput").value = category.name || "";
+  if ($("categoryDialogTitle")) $("categoryDialogTitle").textContent = "Editar categoria";
   renderCategoryImagePreview();
   renderCategoryAttachmentList();
-  $("categoryDialog").showModal();
+  $("categoryDialog")?.showModal();
+}
+
+function openCategoryDetail(categoryId) {
+  const category = categories.find((c) => c.id === categoryId);
+  if (!category) return;
+  showView("categoriesView");
+  const linked = items.filter((item) => itemBelongsToCategory(item, categoryId));
+  if ($("categoryDetailTitle")) $("categoryDetailTitle").textContent = category.name;
+  if ($("categoryDetailCount")) $("categoryDetailCount").textContent = `${linked.length} item(ns)`;
+  if ($("categoryDetailValue")) $("categoryDetailValue").textContent = money(linked.reduce((sum, i) => sum + Number(i.estimatedValue || 0), 0));
+  if ($("categoryDetailCover")) {
+    $("categoryDetailCover").innerHTML = category.image
+      ? `<img src="${category.image}" alt="Capa de ${escapeHtml(category.name)}" onerror="this.hidden=true;this.nextElementSibling.hidden=false"><div class="category-cover-placeholder" hidden>${escapeHtml(category.name.slice(0, 2).toUpperCase())}</div>`
+      : `<div class="category-cover-placeholder">${escapeHtml(category.name.slice(0, 2).toUpperCase() || "VM")}</div>`;
+  }
+  if ($("categoryDetailItems")) {
+    $("categoryDetailItems").innerHTML = linked.length
+      ? linked.map(itemCard).join("")
+      : '<div class="empty"><span class="empty-symbol">◇</span><strong>Nenhum item nesta categoria.</strong><p>Use “Adicionar item” para cadastrar o primeiro.</p></div>';
+  }
+  if ($("categoryDetailAddBtn")) $("categoryDetailAddBtn").onclick = () => addItemFromCategory(categoryId);
+  if ($("categoryDetailEditBtn")) $("categoryDetailEditBtn").onclick = () => { $("categoryDetailDialog")?.close(); openCategoryEditor(categoryId); };
+  $("categoryDetailDialog")?.showModal();
+}
+
+function addItemFromCategory(categoryId) {
+  const categoryName = getCategoryNameById(categoryId);
+  if (!categoryName) return;
+  $("categoryDetailDialog")?.close();
+  clearForm();
+  $("category").value = categoryName;
+  showView("addView");
 }
 
 function renderCategoryImagePreview() {
   if (!$("categoryImagePreview")) return;
   $("categoryImagePreview").innerHTML = categoryDraftImage
     ? `<img src="${categoryDraftImage}" alt="Imagem da categoria" onerror="this.hidden=true;this.nextElementSibling.hidden=false"><span hidden>Imagem indisponível</span>`
-    : '<span>Sem imagem</span>';
+    : '<span>Sem capa</span>';
 }
 
 async function saveCategoryMedia() {
-  const index = categories.findIndex((c) => c.id === editingCategoryId);
-  if (index < 0) return;
-  categories[index] = normalizeCategory({
-    ...categories[index],
-    image: categoryDraftImage,
-    attachments: categoryDraftAttachments,
-    updatedAt: new Date().toISOString()
-  });
+  const name = $("categoryNameInput")?.value.trim() || "";
+  if (!name) return alert("Informe o nome da categoria.");
+  const duplicate = categories.find((c) => c.name.toLowerCase() === name.toLowerCase() && c.id !== editingCategoryId);
+  if (duplicate) return alert("Já existe uma categoria com este nome.");
+
+  if (editingCategoryId) {
+    const index = categories.findIndex((c) => c.id === editingCategoryId);
+    if (index < 0) return;
+    const previousName = categories[index].name;
+    categories[index] = normalizeCategory({
+      ...categories[index],
+      name,
+      image: categoryDraftImage,
+      attachments: categoryDraftAttachments,
+      updatedAt: new Date().toISOString()
+    });
+    if (previousName !== name) {
+      items.forEach((item) => {
+        if (item.category === previousName) item.category = name;
+      });
+      await saveItems();
+    }
+  } else {
+    categories.push(normalizeCategory({
+      name,
+      image: categoryDraftImage,
+      attachments: categoryDraftAttachments,
+      updatedAt: new Date().toISOString()
+    }));
+  }
+
+  categories.sort((a, b) => a.name.localeCompare(b.name, "pt-BR"));
   await VMStorage.replaceAll("categories", categories);
   renderCategories();
-  $("categoryDialog").close();
+  renderHome();
+  updateCategoryControls();
+  $("categoryDialog")?.close();
 }
 
 function reportBlockFromMap(mapObj) {
@@ -1050,13 +1138,14 @@ function shareItem(id) {
 function printItem(id) { openDetail(id); setTimeout(() => window.print(), 250); }
 
 function buildCatalogPdfDocument(selectedItems) {
-  const selectedCategory = getCategoryNameById($("categoryFilter").value) || "Todas as categorias";
+  const selectedCategory = getCategoryNameById(catalogAppliedFilters.categoryId) || "Todas as categorias";
   const personName = profile.name || "Seu nome";
   const profilePhoto = profile.photo || document.querySelector(".brand-logo")?.src || "";
   const appLogo = document.querySelector(".brand-logo")?.src || "";
   const generatedAt = new Date().toLocaleDateString("pt-BR");
-  const favoriteLabel = $("favoriteFilter").selectedOptions?.[0]?.textContent || "Todos";
-  const searchLabel = $("searchInput").value.trim() || "Todos os nomes";
+  const favoriteLabel = catalogAppliedFilters.favorite === "favorite" ? "Somente favoritos" : catalogAppliedFilters.favorite === "not-favorite" ? "Somente não favoritos" : "Todos";
+  const ownershipLabel = catalogAppliedFilters.ownership === "owned" ? "Somente possuídos" : catalogAppliedFilters.ownership === "desired" ? "Somente desejados" : "Possuídos e desejados";
+  const searchLabel = catalogAppliedFilters.search || "Todos os nomes";
   const sortLabel = $("sortSelect").selectedOptions?.[0]?.textContent || "Mais recentes";
 
   const rows = selectedItems.map((item, index) => {
@@ -1143,7 +1232,7 @@ function buildCatalogPdfDocument(selectedItems) {
           <h1>${escapeHtml(selectedCategory)}</h1>
           <p class="cover-person">${escapeHtml(personName)}</p>
           <div class="category-box">${selectedItems.length} item(ns)</div>
-          <div class="cover-meta">Busca: ${escapeHtml(searchLabel)}<br>Favoritos: ${escapeHtml(favoriteLabel)}<br>Ordem: ${escapeHtml(sortLabel)}<br>Gerado em ${generatedAt}</div>
+          <div class="cover-meta">Busca: ${escapeHtml(searchLabel)}<br>Possuídos/desejados: ${escapeHtml(ownershipLabel)}<br>Favoritos: ${escapeHtml(favoriteLabel)}<br>Ordem: ${escapeHtml(sortLabel)}<br>Gerado em ${generatedAt}</div>
         </div>
       </div>
       <div class="cover-footer">VM Collection - Seu acervo digital</div>
@@ -1181,10 +1270,7 @@ function generateCatalogPdf() {
 }
 
 function clearFilters() {
-  $("searchInput").value = "";
-  $("categoryFilter").value = "";
-  $("favoriteFilter").value = "";
-  renderCatalog();
+  resetCatalogFilters({ render: true });
 }
 
 function setupVideoRecorder() {
@@ -1368,6 +1454,9 @@ window.deleteItem = deleteItem;
 window.shareItem = shareItem;
 window.printItem = printItem;
 window.openCategoryEditor = openCategoryEditor;
+window.openCategoryCreator = openCategoryCreator;
+window.openCategoryDetail = openCategoryDetail;
+window.addItemFromCategory = addItemFromCategory;
 window.openStoredAttachment = openStoredAttachment;
 window.downloadStoredAttachment = downloadStoredAttachment;
 window.removeItemDraftAttachment = removeItemDraftAttachment;
@@ -1426,8 +1515,14 @@ async function initializePersistentApp() {
   renderProfile();
   renderMediaSection();
   renderItemAttachmentList();
+  resetCatalogFilters({ render: true });
 
   document.addEventListener("click", (e) => {
+    const bottomNavBtn = e.target.closest(".nav-item[data-go]");
+    if (bottomNavBtn) {
+      showView(bottomNavBtn.dataset.go, { resetCatalogFilters: bottomNavBtn.dataset.go === "catalogView" });
+      return;
+    }
     const navBtn = e.target.closest("[data-go]");
     if (navBtn) showView(navBtn.dataset.go);
   });
@@ -1453,10 +1548,13 @@ async function initializePersistentApp() {
   $("cancelEditBtn").addEventListener("click", clearForm);
   $("removeMediaBtn").addEventListener("click", () => { currentPhotos = []; currentVideo = ""; renderMediaSection(); });
   $("clearFiltersBtn").addEventListener("click", clearFilters);
+  $("searchCatalogBtn").addEventListener("click", applyCatalogFilters);
+  $("searchInput")?.addEventListener("keydown", (e) => {
+    if (e.key === "Enter") { e.preventDefault(); applyCatalogFilters(); }
+  });
   $("generateCatalogPdfBtn").addEventListener("click", generateCatalogPdf);
 
-  ["searchInput"].forEach((id) => $(id).addEventListener("input", renderCatalog));
-  ["categoryFilter", "favoriteFilter", "sortSelect"].forEach((id) => $(id).addEventListener("change", renderCatalog));
+  $("sortSelect").addEventListener("change", renderCatalog);
   $("gridBtn").addEventListener("click", () => { gridMode = "grid"; $("gridBtn").classList.add("active"); $("listBtn").classList.remove("active"); renderCatalog(); });
   $("listBtn").addEventListener("click", () => { gridMode = "list"; $("listBtn").classList.add("active"); $("gridBtn").classList.remove("active"); renderCatalog(); });
 
@@ -1503,7 +1601,10 @@ async function initializePersistentApp() {
     e.target.value = "";
   });
   $("removeCategoryImageBtn").addEventListener("click", () => { categoryDraftImage = ""; renderCategoryImagePreview(); });
+  $("categoryCoverBtn")?.addEventListener("click", () => $("categoryImageInput")?.click());
   $("closeCategoryDialogBtn").addEventListener("click", () => $("categoryDialog").close());
+  $("closeCategoryDetailBtn")?.addEventListener("click", () => $("categoryDetailDialog")?.close());
+  $("createCategoryBtn")?.addEventListener("click", openCategoryCreator);
   $("categoryMediaForm").addEventListener("submit", async (e) => { e.preventDefault(); await saveCategoryMedia(); });
 
   $("profilePhotoInput").addEventListener("change", async (e) => {
