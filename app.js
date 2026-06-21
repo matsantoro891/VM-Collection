@@ -450,12 +450,18 @@ function itemBadges(item) {
 }
 
 function itemCard(item) {
-  const img = item.photo ? `<img src="${item.photo}" alt="${escapeHtml(item.name)}" onerror="this.hidden=true;this.nextElementSibling.hidden=false"><span hidden>Imagem indisponível</span>` : "<span>Sem foto</span>";
+  const photos = itemPhotosFromRaw(item);
+  const img = photos.length
+    ? `<button type="button" class="item-photo-open" onclick="event.stopPropagation();openPhotoViewerForItem('${item.id}', 0, this)" aria-label="Ampliar fotos de ${escapeHtml(item.name || "item")}"><img src="${item.photo}" alt="${escapeHtml(item.name)}" onerror="this.hidden=true;this.nextElementSibling.hidden=false"><span hidden>Imagem indisponível</span></button>`
+    : "<span>Sem foto</span>";
   return `<article class="item-card" onclick="openDetail('${item.id}')"><div class="item-photo">${img}${itemBadges(item)}</div><div class="item-body"><h4>${escapeHtml(item.name || "Item sem nome")}</h4><div class="meta-line"><span>${escapeHtml(item.category || "Sem categoria")}</span><span>${money(item.estimatedValue)}</span></div><div class="meta-line"><span>${escapeHtml(item.year || "")}</span><span>${escapeHtml(item.condition || "")}</span></div></div></article>`;
 }
 
 function recentCard(item) {
-  const img = item.photo ? `<img src="${item.photo}" alt="${escapeHtml(item.name)}" onerror="this.hidden=true;this.nextElementSibling.hidden=false"><span hidden>Imagem indisponível</span>` : "<span>Sem foto</span>";
+  const photos = itemPhotosFromRaw(item);
+  const img = photos.length
+    ? `<button type="button" class="recent-photo-open" onclick="event.stopPropagation();openPhotoViewerForItem('${item.id}', 0, this)" aria-label="Ampliar fotos de ${escapeHtml(item.name || "item")}"><img src="${item.photo}" alt="${escapeHtml(item.name)}" onerror="this.hidden=true;this.nextElementSibling.hidden=false"><span hidden>Imagem indisponível</span></button>`
+    : "<span>Sem foto</span>";
   const sub = [item.year, item.category].filter(Boolean).join(" • ");
   return `<article class="recent-card" onclick="openDetail('${item.id}')"><div class="recent-photo">${img}</div><div class="recent-body"><h4>${escapeHtml(item.name || "Item sem nome")}</h4><p>${escapeHtml(sub || item.category || "Sem categoria")}</p></div></article>`;
 }
@@ -726,23 +732,231 @@ async function addPhotosFromFiles(files, { source = "picker" } = {}) {
   return { added: accepted.length, skipped };
 }
 
+const photoViewerState = {
+  photos: [],
+  index: 0,
+  triggerEl: null,
+  scrollY: 0,
+  touchStartX: 0,
+  touchStartY: 0,
+  touchActive: false,
+  swiping: false
+};
+
+function preloadViewerPhotos(index) {
+  [index - 1, index + 1].forEach((slot) => {
+    const src = photoViewerState.photos[slot];
+    if (!src) return;
+    const img = new Image();
+    img.src = src;
+  });
+}
+
+function updatePhotoViewerChrome() {
+  const total = photoViewerState.photos.length;
+  const index = photoViewerState.index;
+  const counter = $("photoViewerCounter");
+  const prev = $("photoViewerPrev");
+  const next = $("photoViewerNext");
+  const dots = $("photoViewerDots");
+  const multi = total > 1;
+
+  if (counter) {
+    counter.hidden = !multi;
+    counter.textContent = `${index + 1} de ${total}`;
+  }
+  if (prev) {
+    prev.hidden = !multi;
+    prev.disabled = index <= 0;
+  }
+  if (next) {
+    next.hidden = !multi;
+    next.disabled = index >= total - 1;
+  }
+  if (dots) {
+    dots.hidden = !multi;
+    dots.innerHTML = multi
+      ? photoViewerState.photos.map((_, i) => `<button type="button" class="photo-viewer-dot${i === index ? " is-active" : ""}" aria-label="Ir para foto ${i + 1}" onclick="goToViewerPhoto(${i})"></button>`).join("")
+      : "";
+  }
+
+  $("photoViewerTrack")?.querySelectorAll(".photo-viewer-slide").forEach((slide, i) => {
+    slide.setAttribute("aria-hidden", String(i !== index));
+  });
+}
+
+function updatePhotoViewerTrack(animate = true) {
+  const track = $("photoViewerTrack");
+  if (!track) return;
+  track.style.transition = animate ? "transform 220ms ease" : "none";
+  track.style.transform = `translate3d(-${photoViewerState.index * 100}%, 0, 0)`;
+  updatePhotoViewerChrome();
+  preloadViewerPhotos(photoViewerState.index);
+}
+
+function renderPhotoViewerSlides() {
+  const track = $("photoViewerTrack");
+  if (!track) return;
+  const total = photoViewerState.photos.length;
+  track.innerHTML = photoViewerState.photos.map((src, i) => `
+    <div class="photo-viewer-slide" aria-hidden="${i !== photoViewerState.index}">
+      <div class="photo-viewer-frame">
+        <img src="${src}" alt="Foto ${i + 1} de ${total}" decoding="async" onerror="this.hidden=true;this.closest('.photo-viewer-slide')?.classList.add('is-error')">
+        <div class="photo-viewer-error">Imagem indisponível</div>
+      </div>
+    </div>
+  `).join("");
+  updatePhotoViewerTrack(false);
+}
+
+function goToViewerPhoto(index, animate = true) {
+  const max = photoViewerState.photos.length - 1;
+  if (index < 0 || index > max || index === photoViewerState.index) return;
+  photoViewerState.index = index;
+  updatePhotoViewerTrack(animate);
+}
+
+function lockPageScroll() {
+  photoViewerState.scrollY = window.scrollY;
+  document.body.style.position = "fixed";
+  document.body.style.top = `-${photoViewerState.scrollY}px`;
+  document.body.style.left = "0";
+  document.body.style.right = "0";
+  document.body.style.width = "100%";
+  document.body.style.overflow = "hidden";
+}
+
+function unlockPageScroll() {
+  const y = photoViewerState.scrollY;
+  document.body.style.position = "";
+  document.body.style.top = "";
+  document.body.style.left = "";
+  document.body.style.right = "";
+  document.body.style.width = "";
+  document.body.style.overflow = "";
+  window.scrollTo(0, y);
+}
+
+function closePhotoViewer() {
+  const dialog = $("photoViewerDialog");
+  if (!dialog?.open) return;
+  dialog.close();
+  unlockPageScroll();
+  photoViewerState.photos = [];
+  photoViewerState.index = 0;
+  const trigger = photoViewerState.triggerEl;
+  photoViewerState.triggerEl = null;
+  trigger?.focus?.();
+}
+
+function openItemPhotoViewer(photos, startIndex = 0, triggerEl = null) {
+  const list = (Array.isArray(photos) ? photos : []).map(String).filter(Boolean);
+  if (!list.length) return;
+  const dialog = $("photoViewerDialog");
+  if (!dialog) return;
+
+  photoViewerState.photos = list;
+  photoViewerState.index = Math.min(Math.max(0, startIndex), list.length - 1);
+  photoViewerState.triggerEl = triggerEl || document.activeElement;
+
+  renderPhotoViewerSlides();
+  lockPageScroll();
+  dialog.showModal();
+}
+
+function openPhotoViewerForItem(itemId, startIndex = 0, triggerEl = null) {
+  const item = items.find((entry) => entry.id === itemId);
+  if (!item) return;
+  openItemPhotoViewer(itemPhotosFromRaw(item), startIndex, triggerEl);
+}
+
+function openPhotoLightbox(index) {
+  openItemPhotoViewer(currentPhotos, index, document.activeElement);
+}
+
+function renderDetailMedia(item) {
+  const photos = itemPhotosFromRaw(item);
+  const badges = itemBadges(item);
+  if (!photos.length) {
+    return `<div class="detail-media"><div class="detail-placeholder">Sem foto</div>${badges}</div>`;
+  }
+  const thumbs = photos.length > 1
+    ? `<div class="detail-photo-thumbs">${photos.map((src, i) => `
+        <button type="button" class="detail-photo-thumb${i === 0 ? " is-active" : ""}" onclick="openPhotoViewerForItem('${item.id}', ${i}, this)" aria-label="Ver foto ${i + 1} de ${photos.length}">
+          <img src="${src}" alt="" onerror="this.closest('button')?.classList.add('is-error')">
+        </button>`).join("")}</div>`
+    : "";
+  return `<div class="detail-media-wrap">
+    <button type="button" class="detail-media-main" onclick="openPhotoViewerForItem('${item.id}', 0, this)" aria-label="Ampliar fotos de ${escapeHtml(item.name || "item")}">
+      <img src="${photos[0]}" alt="${escapeHtml(item.name)}" onerror="this.hidden=true;this.nextElementSibling.hidden=false">
+      <div class="detail-placeholder" hidden>Imagem indisponível</div>
+    </button>
+    ${badges}
+    ${thumbs}
+  </div>`;
+}
+
+function setupPhotoViewer() {
+  const dialog = $("photoViewerDialog");
+  const viewport = $("photoViewerViewport");
+  if (!dialog || !viewport) return;
+
+  $("closePhotoViewerBtn")?.addEventListener("click", closePhotoViewer);
+  $("photoViewerPrev")?.addEventListener("click", () => goToViewerPhoto(photoViewerState.index - 1));
+  $("photoViewerNext")?.addEventListener("click", () => goToViewerPhoto(photoViewerState.index + 1));
+
+  dialog.addEventListener("close", () => {
+    if (document.body.style.position === "fixed") unlockPageScroll();
+    photoViewerState.photos = [];
+  });
+
+  dialog.addEventListener("cancel", (e) => {
+    e.preventDefault();
+    closePhotoViewer();
+  });
+
+  dialog.addEventListener("keydown", (e) => {
+    if (!dialog.open) return;
+    if (e.key === "ArrowLeft") { e.preventDefault(); goToViewerPhoto(photoViewerState.index - 1); }
+    if (e.key === "ArrowRight") { e.preventDefault(); goToViewerPhoto(photoViewerState.index + 1); }
+  });
+
+  viewport.addEventListener("touchstart", (e) => {
+    if (photoViewerState.photos.length <= 1 || e.touches.length !== 1) return;
+    photoViewerState.touchStartX = e.touches[0].clientX;
+    photoViewerState.touchStartY = e.touches[0].clientY;
+    photoViewerState.touchActive = true;
+    photoViewerState.swiping = false;
+  }, { passive: true });
+
+  viewport.addEventListener("touchmove", (e) => {
+    if (!photoViewerState.touchActive || e.touches.length !== 1) return;
+    const dx = e.touches[0].clientX - photoViewerState.touchStartX;
+    const dy = e.touches[0].clientY - photoViewerState.touchStartY;
+    if (!photoViewerState.swiping && Math.abs(dx) > 12 && Math.abs(dx) > Math.abs(dy) * 1.35) {
+      photoViewerState.swiping = true;
+    }
+    if (photoViewerState.swiping) e.preventDefault();
+  }, { passive: false });
+
+  viewport.addEventListener("touchend", (e) => {
+    if (!photoViewerState.touchActive) return;
+    const dx = e.changedTouches[0].clientX - photoViewerState.touchStartX;
+    if (photoViewerState.swiping && Math.abs(dx) > 52) {
+      if (dx < 0) goToViewerPhoto(photoViewerState.index + 1);
+      else goToViewerPhoto(photoViewerState.index - 1);
+    }
+    photoViewerState.touchActive = false;
+    photoViewerState.swiping = false;
+  }, { passive: true });
+}
+
 function removeItemPhoto(index) {
   if (index < 0 || index >= currentPhotos.length) return;
   currentPhotos.splice(index, 1);
   renderPhotoThumbGrid();
   updatePhotoLimitMessage();
   updateMediaMenuPhotoOptions();
-}
-
-function openPhotoLightbox(index) {
-  const src = currentPhotos[index];
-  if (!src) return;
-  const dialog = $("photoLightboxDialog");
-  const img = $("photoLightboxImage");
-  if (!dialog || !img) return;
-  img.src = src;
-  img.alt = index === 0 ? "Foto principal ampliada" : `Foto ${index + 1} ampliada`;
-  dialog.showModal();
 }
 
 function renderPhotoThumbGrid() {
@@ -814,7 +1028,7 @@ function fillForm(item) {
 function openDetail(id) {
   const item = items.find((i) => i.id === id);
   if (!item) return;
-  const media = item.photo ? `<div class="detail-media"><img src="${item.photo}" alt="${escapeHtml(item.name)}" onerror="this.hidden=true;this.nextElementSibling.hidden=false"><div class="detail-placeholder" hidden>Imagem indisponível</div>${itemBadges(item)}</div>` : '<div class="detail-media"><div class="detail-placeholder">Sem foto</div></div>';
+  const media = renderDetailMedia(item);
   const markers = [item.favorite ? "Favorito" : "", item.desired ? "Desejado" : "", item.rare ? "Raro" : ""].filter(Boolean).join(" • ");
   const files = item.attachments?.length ? `<section class="detail-attachments"><h3>Arquivos anexados</h3>${renderAttachmentRows(item.attachments, "item", item.id)}</section>` : "";
   const observacaoRow = item.tags ? `<div><span>Observação</span>${escapeHtml(item.tags)}</div>` : "";
@@ -1062,10 +1276,6 @@ function setupMediaMenu(openVideoRecorder) {
     closeMediaMenu(false);
     openVideoRecorder();
   });
-  $("closePhotoLightboxBtn")?.addEventListener("click", () => $("photoLightboxDialog")?.close());
-  $("photoLightboxDialog")?.addEventListener("click", (e) => {
-    if (e.target === $("photoLightboxDialog")) $("photoLightboxDialog").close();
-  });
 }
 
 function updateBackupStatus(message, isError = false) {
@@ -1165,6 +1375,9 @@ window.removeItemDraftAttachment = removeItemDraftAttachment;
 window.removeCategoryDraftAttachment = removeCategoryDraftAttachment;
 window.removeItemPhoto = removeItemPhoto;
 window.openPhotoLightbox = openPhotoLightbox;
+window.openItemPhotoViewer = openItemPhotoViewer;
+window.openPhotoViewerForItem = openPhotoViewerForItem;
+window.goToViewerPhoto = goToViewerPhoto;
 
 window.addEventListener("beforeinstallprompt", (e) => {
   e.preventDefault();
@@ -1355,6 +1568,7 @@ async function initializePersistentApp() {
   });
 
   setupMediaMenu(setupVideoRecorder());
+  setupPhotoViewer();
 }
 
 document.addEventListener("DOMContentLoaded", initializePersistentApp);

@@ -433,10 +433,20 @@
     </div>
   </dialog>
 
-  <dialog id="photoLightboxDialog" class="photo-lightbox-dialog">
-    <div class="dialog-card photo-lightbox-card">
-      <button type="button" class="photo-lightbox-close" id="closePhotoLightboxBtn" aria-label="Fechar visualização">×</button>
-      <img id="photoLightboxImage" src="" alt="Visualização ampliada da foto" />
+  <dialog id="photoViewerDialog" class="photo-viewer-dialog" aria-label="Visualizador de fotos do item">
+    <div class="photo-viewer-shell">
+      <header class="photo-viewer-header">
+        <span id="photoViewerCounter" class="photo-viewer-counter" hidden>1 de 1</span>
+        <button type="button" class="photo-viewer-close" id="closePhotoViewerBtn" aria-label="Fechar visualização">×</button>
+      </header>
+      <div class="photo-viewer-stage">
+        <button type="button" class="photo-viewer-nav photo-viewer-prev" id="photoViewerPrev" aria-label="Foto anterior" hidden>‹</button>
+        <div class="photo-viewer-viewport" id="photoViewerViewport">
+          <div class="photo-viewer-track" id="photoViewerTrack"></div>
+        </div>
+        <button type="button" class="photo-viewer-nav photo-viewer-next" id="photoViewerNext" aria-label="Próxima foto" hidden>›</button>
+      </div>
+      <div class="photo-viewer-dots" id="photoViewerDots" hidden aria-hidden="true"></div>
     </div>
   </dialog>
 
