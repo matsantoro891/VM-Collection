@@ -348,6 +348,10 @@ label input,label select,label textarea{margin-top:7px}
 .detail-table div{background:var(--surface-2);border:1px solid var(--line);border-radius:16px;padding:12px}
 .detail-table span{display:block;color:var(--muted);font-size:.78rem;margin-bottom:5px}
 .detail-actions{display:flex;gap:9px;flex-wrap:wrap;margin-top:18px}
+.detail-text-block{margin:16px 0 0}
+.detail-text-block h3{margin:0 0 8px;font:700 1.05rem Georgia,serif}
+.detail-status-row{display:flex;flex-wrap:wrap;gap:8px;margin:10px 0 4px}
+.detail-status-chip{display:inline-flex;align-items:center;padding:6px 11px;border-radius:999px;background:var(--surface-2);border:1px solid var(--line);font-size:.78rem;font-weight:750;color:var(--ink)}
 .danger-btn{color:var(--danger)}
 
 /* Vazio, navegação e dialog */
@@ -466,6 +470,16 @@ dialog::backdrop{background:rgba(8,18,34,.63);backdrop-filter:blur(5px)}
 .item-detail-scroll .detail-media img,.item-detail-scroll .detail-media-main img,.item-detail-scroll .detail-video{max-width:100%}
 .item-detail-scroll .detail-table{min-width:0}
 .item-detail-scroll .detail-actions{max-width:100%}
+.item-detail-scroll .detail-card-stack .detail-hero{display:block;grid-template-columns:1fr}
+.item-detail-scroll .detail-card-stack .detail-media-wrap .detail-media-main{min-height:220px;max-height:min(50dvh,420px);width:100%}
+.item-detail-scroll .detail-card-stack .detail-media-main img{min-height:220px;max-height:min(50dvh,420px);object-fit:contain;background:#e9e0d1}
+.item-detail-scroll .detail-card-stack .detail-placeholder{min-height:220px;max-height:min(50dvh,420px)}
+.item-detail-scroll .detail-actions-primary{position:sticky;bottom:0;background:linear-gradient(180deg,rgba(255,253,250,0),rgba(255,253,250,.96) 24%,var(--surface) 40%);padding-top:18px;margin-top:8px}
+.item-detail-scroll .detail-actions-primary .primary-btn,.item-detail-scroll .detail-actions-primary .danger-btn{min-height:48px;flex:1 1 160px}
+.confirm-dialog{max-width:420px}
+.confirm-dialog-card p{line-height:1.55;margin:0 0 6px}
+.confirm-dialog-actions{justify-content:flex-end}
+.confirm-dialog-actions .danger-btn{background:var(--danger);border-color:var(--danger);color:#fff}
 .media-dialog{max-width:760px}
 .category-media-form{padding:22px}
 .dialog-title-row{display:flex;justify-content:space-between;align-items:flex-start;gap:14px;margin-bottom:18px}

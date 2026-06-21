@@ -938,7 +938,10 @@ const itemDetailState = {
   isOpen: false,
   returnContext: null,
   triggerEl: null,
-  categoryItemsScrollTop: 0
+  categoryItemsScrollTop: 0,
+  currentItemId: null,
+  resumeAfterEdit: null,
+  pendingDeleteId: null
 };
 
 function preloadViewerPhotos(index) {
@@ -1116,8 +1119,9 @@ function setupPhotoViewer() {
   $("photoViewerNext")?.addEventListener("click", () => goToViewerPhoto(photoViewerState.index + 1));
 
   dialog.addEventListener("close", () => {
-    if (document.body.style.position === "fixed") unlockPageScroll();
     photoViewerState.photos = [];
+    photoViewerState.index = 0;
+    photoViewerState.triggerEl = null;
   });
 
   dialog.addEventListener("cancel", (e) => {
@@ -1236,12 +1240,91 @@ function fillForm(item) {
   showView("addView");
 }
 
-function buildDetailHtml(item) {
+function formatItemDateTime(value) {
+  if (!value) return "";
+  const time = Date.parse(value);
+  if (!Number.isFinite(time)) return String(value);
+  return new Date(time).toLocaleString("pt-BR");
+}
+
+function formatItemDate(value) {
+  if (!value) return "";
+  const parts = String(value).split("-").map(Number);
+  if (parts.length === 3 && parts.every((part) => Number.isFinite(part))) {
+    return new Date(parts[0], parts[1] - 1, parts[2]).toLocaleDateString("pt-BR");
+  }
+  return formatItemDateTime(value);
+}
+
+function detailTableRow(label, value) {
+  const text = String(value ?? "").trim();
+  if (!text) return "";
+  return `<div><span>${escapeHtml(label)}</span>${escapeHtml(text)}</div>`;
+}
+
+function detailStatusChips(item) {
+  const chips = [];
+  if (item.favorite) chips.push("Favorito");
+  chips.push(isItemDesired(item) ? "Desejado" : "Possuído");
+  if (item.rare) chips.push("Raro");
+  return chips.length ? `<div class="detail-status-row">${chips.map((chip) => `<span class="detail-status-chip">${escapeHtml(chip)}</span>`).join("")}</div>` : "";
+}
+
+function buildDetailHtml(item, { categoryMode = false } = {}) {
   const media = renderDetailMedia(item);
-  const markers = [item.favorite ? "Favorito" : "", item.desired ? "Desejado" : "", item.rare ? "Raro" : ""].filter(Boolean).join(" • ");
-  const files = item.attachments?.length ? `<section class="detail-attachments"><h3>Arquivos anexados</h3>${renderAttachmentRows(item.attachments, "item", item.id)}</section>` : "";
-  const observacaoRow = item.tags ? `<div><span>Observação</span>${escapeHtml(item.tags)}</div>` : "";
-  return `<article class="detail-card"><div class="detail-hero">${media}<div class="detail-info"><span class="eyebrow">${escapeHtml(item.category || "Coleção")}</span><h2>${escapeHtml(item.name || "Item sem nome")}</h2><p class="detail-description">${escapeHtml(item.description || "Sem descrição cadastrada.")}</p>${item.video ? `<video class="detail-video" src="${item.video}" controls playsinline></video>` : ""}<div class="detail-table"><div><span>Subcategoria</span>${escapeHtml(item.subcategory || "—")}</div><div><span>Marca / origem</span>${escapeHtml(item.brand || "—")}</div><div><span>Ano</span>${escapeHtml(item.year || "—")}</div><div><span>Estado</span>${escapeHtml(item.condition || "—")}</div><div><span>Valor pago</span>${money(item.paidValue)}</div><div><span>Valor estimado</span>${money(item.estimatedValue)}</div><div><span>Data de aquisição</span>${escapeHtml(item.acquiredAt || "—")}</div><div><span>Local</span>${escapeHtml(item.acquiredPlace || "—")}</div><div><span>Série / código</span>${escapeHtml(item.serial || "—")}</div><div><span>Marcadores</span>${escapeHtml(markers || "—")}</div>${observacaoRow}</div>${files}<p><strong>Observações:</strong> ${escapeHtml(item.notes || "—")}</p><p><small>Criado em ${new Date(item.createdAt).toLocaleString("pt-BR")} · Atualizado em ${new Date(item.updatedAt).toLocaleString("pt-BR")}</small></p><div class="detail-actions"><button class="primary-btn" onclick="editItem('${item.id}')">Editar</button><button class="secondary-btn" onclick="shareItem('${item.id}')">Compartilhar</button><button class="secondary-btn" onclick="printItem('${item.id}')">Gerar ficha/PDF</button><button class="ghost-btn danger-btn" onclick="deleteItem('${item.id}')">Excluir</button></div></div></div></article>`;
+  const tableRows = [
+    detailTableRow("Subcategoria", item.subcategory),
+    detailTableRow("Marca / origem", item.brand),
+    detailTableRow("Modelo", item.model),
+    detailTableRow("Escala", item.scale),
+    detailTableRow("Ano", item.year),
+    detailTableRow("Estado de conservação", item.condition),
+    detailTableRow("Valor pago", money(item.paidValue)),
+    detailTableRow("Valor estimado", money(item.estimatedValue)),
+    detailTableRow("Data de aquisição", formatItemDate(item.acquiredAt)),
+    detailTableRow("Local de aquisição", item.acquiredPlace),
+    detailTableRow("Série / código", item.serial),
+    detailTableRow("Observação", item.tags),
+    detailTableRow("Cadastrado em", formatItemDateTime(item.createdAt)),
+    detailTableRow("Atualizado em", formatItemDateTime(item.updatedAt))
+  ].filter(Boolean).join("");
+  const tableHtml = tableRows ? `<div class="detail-table">${tableRows}</div>` : "";
+  const descriptionHtml = item.description
+    ? `<section class="detail-text-block"><h3>Descrição</h3><p class="detail-description">${escapeHtml(item.description)}</p></section>`
+    : "";
+  const notesHtml = item.notes
+    ? `<section class="detail-text-block"><h3>Observações</h3><p class="detail-description">${escapeHtml(item.notes)}</p></section>`
+    : "";
+  const files = item.attachments?.length
+    ? `<section class="detail-attachments"><h3>Arquivos anexados</h3>${renderAttachmentRows(item.attachments, "item", item.id)}</section>`
+    : "";
+  const videoHtml = item.video ? `<video class="detail-video" src="${item.video}" controls playsinline></video>` : "";
+  const actions = categoryMode
+    ? `<div class="detail-actions detail-actions-primary"><button class="primary-btn" type="button" onclick="editItem('${item.id}')">Editar item</button><button class="ghost-btn danger-btn" type="button" onclick="requestDeleteItem('${item.id}')">Excluir item</button></div>`
+    : `<div class="detail-actions"><button class="primary-btn" type="button" onclick="editItem('${item.id}')">Editar item</button><button class="secondary-btn" type="button" onclick="shareItem('${item.id}')">Compartilhar</button><button class="secondary-btn" type="button" onclick="printItem('${item.id}')">Gerar ficha/PDF</button><button class="ghost-btn danger-btn" type="button" onclick="requestDeleteItem('${item.id}')">Excluir item</button></div>`;
+  const stackClass = categoryMode ? " detail-card-stack" : "";
+  return `<article class="detail-card${stackClass}"><div class="detail-hero">${media}<div class="detail-info"><span class="eyebrow">${escapeHtml(item.category || "Coleção")}</span><h2>${escapeHtml(item.name || "Item sem nome")}</h2>${detailStatusChips(item)}${descriptionHtml}${videoHtml}${tableHtml}${notesHtml}${files}${actions}</div></div></article>`;
+}
+
+function refreshItemDetailDialog(itemId) {
+  const dialog = $("itemDetailDialog");
+  if (!dialog?.open || !itemId) return;
+  const item = items.find((entry) => entry.id === itemId);
+  const contentEl = $("itemDetailContent");
+  if (!item || !contentEl) return;
+  const categoryMode = itemDetailState.returnContext?.type === "category";
+  contentEl.innerHTML = buildDetailHtml(item, { categoryMode });
+  itemDetailState.currentItemId = item.id;
+}
+
+function resumeCategoryItemView() {
+  const resume = itemDetailState.resumeAfterEdit;
+  if (!resume?.categoryId || !resume.itemId) return false;
+  openCategoryDetail(resume.categoryId, { preservePageScroll: true, restoreItemsScroll: resume.scroll ?? 0 });
+  const item = items.find((entry) => entry.id === resume.itemId);
+  if (item) openItemDetailDialog(item, { type: "category", categoryId: resume.categoryId }, resume.triggerEl || null);
+  itemDetailState.resumeAfterEdit = null;
+  return true;
 }
 
 function finishItemDetailClose() {
@@ -1254,6 +1337,7 @@ function finishItemDetailClose() {
   itemDetailState.returnContext = null;
   itemDetailState.triggerEl = null;
   itemDetailState.categoryItemsScrollTop = 0;
+  itemDetailState.currentItemId = null;
   if ($("itemDetailContent")) $("itemDetailContent").innerHTML = "";
   if ($("itemDetailScroll")) $("itemDetailScroll").scrollTop = 0;
   if (ctx?.type === "category" && ctx.categoryId) {
@@ -1276,7 +1360,9 @@ function openItemDetailDialog(item, returnContext, triggerEl = null) {
   itemDetailState.isOpen = true;
   itemDetailState.returnContext = returnContext;
   itemDetailState.triggerEl = triggerEl || document.activeElement;
-  contentEl.innerHTML = buildDetailHtml(item);
+  itemDetailState.currentItemId = item.id;
+  const categoryMode = returnContext?.type === "category";
+  contentEl.innerHTML = buildDetailHtml(item, { categoryMode });
   scrollEl.scrollTop = 0;
   lockPageScroll();
   dialog.showModal();
@@ -1284,8 +1370,10 @@ function openItemDetailDialog(item, returnContext, triggerEl = null) {
 
 function openDetail(id) {
   const item = items.find((i) => i.id === id);
-  if (!item) return;
-  const html = buildDetailHtml(item);
+  if (!item) {
+    alert("Este item não foi encontrado.");
+    return;
+  }
   const categoryDialog = $("categoryDetailDialog");
   if (categoryDialog?.open && activeCategoryDetailId) {
     itemDetailState.categoryItemsScrollTop = $("categoryDetailItems")?.scrollTop ?? 0;
@@ -1293,27 +1381,98 @@ function openDetail(id) {
     openItemDetailDialog(item, { type: "category", categoryId: activeCategoryDetailId }, document.activeElement);
     return;
   }
-  $("detailContent").innerHTML = html;
+  $("detailContent").innerHTML = buildDetailHtml(item, { categoryMode: false });
   showView("detailView");
 }
 
 function editItem(id) {
-  if ($("itemDetailDialog")?.open) {
-    itemDetailState.returnContext = null;
-    closeItemDetailDialog();
-  }
   const item = items.find((i) => i.id === id);
-  if (item) fillForm(item);
-}
-async function deleteItem(id) {
-  if (!confirm("Excluir este item da coleção?")) return;
-  if ($("itemDetailDialog")?.open) {
-    itemDetailState.returnContext = null;
+  if (!item) {
+    alert("Este item não foi encontrado.");
+    return;
+  }
+  const dialogOpen = $("itemDetailDialog")?.open;
+  const categoryCtx = dialogOpen && itemDetailState.returnContext?.type === "category"
+    ? itemDetailState.returnContext
+    : null;
+  if (dialogOpen) {
+    if (categoryCtx) {
+      itemDetailState.resumeAfterEdit = {
+        categoryId: categoryCtx.categoryId,
+        itemId: id,
+        scroll: itemDetailState.categoryItemsScrollTop,
+        triggerEl: itemDetailState.triggerEl
+      };
+      itemDetailState.returnContext = null;
+    } else {
+      itemDetailState.resumeAfterEdit = null;
+      itemDetailState.returnContext = null;
+    }
     closeItemDetailDialog();
   }
-  items = items.filter((i) => i.id !== id);
-  await saveItems();
-  showView("catalogView");
+  fillForm(item);
+}
+
+function requestDeleteItem(id) {
+  if (!items.some((item) => item.id === id)) {
+    alert("Este item não foi encontrado.");
+    return;
+  }
+  itemDetailState.pendingDeleteId = id;
+  $("deleteItemDialog")?.showModal();
+}
+
+async function deleteItem(id) {
+  const item = items.find((i) => i.id === id);
+  if (!item) {
+    alert("Este item não foi encontrado.");
+    return false;
+  }
+  const dialogOpen = $("itemDetailDialog")?.open;
+  const categoryCtx = dialogOpen && itemDetailState.returnContext?.type === "category"
+    ? itemDetailState.returnContext
+    : null;
+  const categoryId = categoryCtx?.categoryId || itemDetailState.resumeAfterEdit?.categoryId || null;
+  const itemsScroll = itemDetailState.categoryItemsScrollTop;
+  if (dialogOpen) {
+    itemDetailState.returnContext = null;
+    itemDetailState.resumeAfterEdit = null;
+    closeItemDetailDialog();
+  }
+  try {
+    items = items.filter((i) => i.id !== id);
+    await saveItems();
+    if (categoryId) {
+      openCategoryDetail(categoryId, { preservePageScroll: true, restoreItemsScroll: itemsScroll });
+    } else {
+      showView("catalogView");
+    }
+    return true;
+  } catch (error) {
+    console.error(error);
+    alert("Não foi possível excluir este item. Tente novamente.");
+    if (categoryId) openCategoryDetail(categoryId, { preservePageScroll: true, restoreItemsScroll: itemsScroll });
+    return false;
+  }
+}
+
+function setupDeleteItemDialog() {
+  $("cancelDeleteItemBtn")?.addEventListener("click", () => {
+    itemDetailState.pendingDeleteId = null;
+    $("deleteItemDialog")?.close();
+  });
+  $("deleteItemDialog")?.addEventListener("cancel", (e) => {
+    e.preventDefault();
+    itemDetailState.pendingDeleteId = null;
+    $("deleteItemDialog")?.close();
+  });
+  $("confirmDeleteItemBtn")?.addEventListener("click", async () => {
+    const id = itemDetailState.pendingDeleteId;
+    itemDetailState.pendingDeleteId = null;
+    $("deleteItemDialog")?.close();
+    if (!id) return;
+    await deleteItem(id);
+  });
 }
 function shareItem(id) {
   const item = items.find((i) => i.id === id); if (!item) return;
@@ -1662,6 +1821,7 @@ window.openCatalogForCategory = openCatalogForCategory;
 window.openDetail = openDetail;
 window.editItem = editItem;
 window.deleteItem = deleteItem;
+window.requestDeleteItem = requestDeleteItem;
 window.shareItem = shareItem;
 window.printItem = printItem;
 window.openCategoryEditor = openCategoryEditor;
@@ -1749,14 +1909,29 @@ async function initializePersistentApp() {
     const item = readForm();
     if (!item.name) return alert("Informe o nome do item.");
     const idx = items.findIndex((i) => i.id === item.id);
+    const resume = itemDetailState.resumeAfterEdit;
     if (idx >= 0) items[idx] = item; else items.unshift(item);
-    await saveItems();
-    clearForm();
-    showView("catalogView");
+    try {
+      await saveItems();
+      clearForm();
+      if (resume?.categoryId) {
+        itemDetailState.resumeAfterEdit = { ...resume, itemId: item.id };
+        resumeCategoryItemView();
+        return;
+      }
+      showView("catalogView");
+    } catch (error) {
+      console.error(error);
+      alert("Não foi possível salvar este item. Tente novamente.");
+    }
   });
 
   $("clearFormBtn").addEventListener("click", clearForm);
-  $("cancelEditBtn").addEventListener("click", clearForm);
+  $("cancelEditBtn").addEventListener("click", () => {
+    const resume = itemDetailState.resumeAfterEdit;
+    clearForm();
+    if (resume?.categoryId) resumeCategoryItemView();
+  });
   $("removeMediaBtn").addEventListener("click", () => { currentPhotos = []; currentVideo = ""; renderMediaSection(); });
   $("clearFiltersBtn").addEventListener("click", clearFilters);
   $("searchCatalogBtn").addEventListener("click", applyCatalogFilters);
@@ -1867,6 +2042,7 @@ async function initializePersistentApp() {
   setupMediaMenu(setupVideoRecorder());
   setupPhotoViewer();
   setupItemDetailDialog();
+  setupDeleteItemDialog();
 }
 
 document.addEventListener("DOMContentLoaded", initializePersistentApp);

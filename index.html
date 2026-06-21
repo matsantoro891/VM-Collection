@@ -444,6 +444,18 @@
     </div>
   </dialog>
 
+  <dialog id="deleteItemDialog" class="confirm-dialog" aria-labelledby="deleteItemDialogTitle">
+    <div class="dialog-card confirm-dialog-card">
+      <span class="panel-kicker">EXCLUSÃO</span>
+      <h3 id="deleteItemDialogTitle">Excluir item</h3>
+      <p id="deleteItemDialogMessage">Deseja excluir este item? Essa ação removerá o item e seus arquivos vinculados e não poderá ser desfeita.</p>
+      <div class="dialog-actions confirm-dialog-actions">
+        <button type="button" class="secondary-btn" id="cancelDeleteItemBtn">Cancelar</button>
+        <button type="button" class="primary-btn danger-btn" id="confirmDeleteItemBtn">Excluir item</button>
+      </div>
+    </div>
+  </dialog>
+
   <dialog id="itemDetailDialog" class="item-detail-dialog" aria-label="Detalhes do item">
     <div class="item-detail-shell">
       <header class="item-detail-header">
