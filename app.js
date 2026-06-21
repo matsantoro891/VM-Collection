@@ -459,19 +459,22 @@ function renderHome() {
   $("recentItems").innerHTML = recent.length ? recent.map(recentCard).join("") : emptyHtml();
 }
 
+function catalogListEmptyHtml() {
+  if (!items.length) return emptyHtml();
+  return '<div class="empty"><span class="empty-symbol">◇</span><strong>Nenhum item encontrado com os filtros selecionados.</strong><p>Ajuste a busca, a categoria ou o filtro de favoritos.</p></div>';
+}
+
 function filterItems() {
   const search = $("searchInput").value.trim().toLowerCase();
   const categoryId = $("categoryFilter").value;
-  const brand = $("brandFilter").value.trim().toLowerCase();
-  const year = $("yearFilter").value.trim().toLowerCase();
-  const model = $("modelFilter").value.trim().toLowerCase();
-  const scale = $("scaleFilter").value.trim().toLowerCase();
-  const rarity = $("rarityFilter").value;
   const favorite = $("favoriteFilter").value;
-  const desired = $("desiredFilter").value;
   return items.filter((item) => {
     const itemName = String(item.name || "").toLowerCase();
-    return (!search || itemName.includes(search)) && itemBelongsToCategory(item, categoryId) && (!brand || item.brand.toLowerCase().includes(brand)) && (!year || item.year.toLowerCase().includes(year)) && (!model || item.model.toLowerCase().includes(model)) && (!scale || item.scale.toLowerCase().includes(scale)) && (rarity !== "rare" || item.rare) && (rarity !== "not-rare" || !item.rare) && (favorite !== "favorite" || item.favorite) && (desired !== "desired" || item.desired) && (desired !== "possessed" || !item.desired);
+    const isFavorite = !!item.favorite;
+    return (!search || itemName.includes(search))
+      && itemBelongsToCategory(item, categoryId)
+      && (favorite !== "favorite" || isFavorite)
+      && (favorite !== "not-favorite" || !isFavorite);
   });
 }
 
@@ -496,7 +499,7 @@ function renderCatalog() {
   const filtered = getCatalogSelection();
   const box = $("catalogItems");
   box.className = `cards-grid ${gridMode === "list" ? "item-list" : ""}`;
-  box.innerHTML = filtered.length ? filtered.map(itemCard).join("") : emptyHtml();
+  box.innerHTML = filtered.length ? filtered.map(itemCard).join("") : catalogListEmptyHtml();
   $("selectionCount").textContent = filtered.length;
   $("selectionValue").textContent = money(filtered.reduce((sum, i) => sum + Number(i.estimatedValue || 0), 0));
   updateCatalogCategoryBadge();
@@ -707,7 +710,8 @@ function buildCatalogPdfDocument(selectedItems) {
   const profilePhoto = profile.photo || document.querySelector(".brand-logo")?.src || "";
   const appLogo = document.querySelector(".brand-logo")?.src || "";
   const generatedAt = new Date().toLocaleDateString("pt-BR");
-  const selectionLabel = $("desiredFilter").selectedOptions?.[0]?.textContent || "Possuídos e desejados";
+  const favoriteLabel = $("favoriteFilter").selectedOptions?.[0]?.textContent || "Todos";
+  const searchLabel = $("searchInput").value.trim() || "Todos os nomes";
   const sortLabel = $("sortSelect").selectedOptions?.[0]?.textContent || "Mais recentes";
 
   const rows = selectedItems.map((item, index) => {
@@ -794,7 +798,7 @@ function buildCatalogPdfDocument(selectedItems) {
           <h1>${escapeHtml(selectedCategory)}</h1>
           <p class="cover-person">${escapeHtml(personName)}</p>
           <div class="category-box">${selectedItems.length} item(ns)</div>
-          <div class="cover-meta">${escapeHtml(selectionLabel)}<br>Ordem: ${escapeHtml(sortLabel)}<br>Gerado em ${generatedAt}</div>
+          <div class="cover-meta">Busca: ${escapeHtml(searchLabel)}<br>Favoritos: ${escapeHtml(favoriteLabel)}<br>Ordem: ${escapeHtml(sortLabel)}<br>Gerado em ${generatedAt}</div>
         </div>
       </div>
       <div class="cover-footer">VM Collection - Seu acervo digital</div>
@@ -832,7 +836,10 @@ function generateCatalogPdf() {
 }
 
 function clearFilters() {
-  $("searchInput").value = ""; $("categoryFilter").value = ""; $("brandFilter").value = ""; $("yearFilter").value = ""; $("modelFilter").value = ""; $("scaleFilter").value = ""; $("rarityFilter").value = ""; $("favoriteFilter").value = ""; $("desiredFilter").value = ""; renderCatalog();
+  $("searchInput").value = "";
+  $("categoryFilter").value = "";
+  $("favoriteFilter").value = "";
+  renderCatalog();
 }
 
 async function setupVideoRecorder() {
@@ -1045,8 +1052,8 @@ async function initializePersistentApp() {
   $("clearFiltersBtn").addEventListener("click", clearFilters);
   $("generateCatalogPdfBtn").addEventListener("click", generateCatalogPdf);
 
-  ["searchInput", "brandFilter", "yearFilter", "modelFilter", "scaleFilter"].forEach((id) => $(id).addEventListener("input", renderCatalog));
-  ["categoryFilter", "rarityFilter", "favoriteFilter", "desiredFilter", "sortSelect"].forEach((id) => $(id).addEventListener("change", renderCatalog));
+  ["searchInput"].forEach((id) => $(id).addEventListener("input", renderCatalog));
+  ["categoryFilter", "favoriteFilter", "sortSelect"].forEach((id) => $(id).addEventListener("change", renderCatalog));
   $("gridBtn").addEventListener("click", () => { gridMode = "grid"; $("gridBtn").classList.add("active"); $("listBtn").classList.remove("active"); renderCatalog(); });
   $("listBtn").addEventListener("click", () => { gridMode = "list"; $("listBtn").classList.add("active"); $("gridBtn").classList.remove("active"); renderCatalog(); });
 

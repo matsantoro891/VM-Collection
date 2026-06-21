@@ -79,14 +79,13 @@
 
       <!-- CATÁLOGO -->
       <section id="catalogView" class="view">
-        <div class="premium-page-banner compact-banner">
+        <div class="premium-page-banner catalog-banner">
           <div class="page-banner-copy">
             <span class="eyebrow">SEU ACERVO</span>
             <h2>Catálogo</h2>
             <p>Encontre rapidamente qualquer item da sua coleção.</p>
           </div>
           <div class="banner-icon" id="bannerCatalogIcon"></div>
-          <button class="banner-action" data-go="addView" type="button"><span>+</span> Adicionar item</button>
         </div>
 
         <div class="premium-panel filter-section">
@@ -94,19 +93,26 @@
             <div><span class="panel-kicker">PESQUISA E FILTROS</span><h3>Localizar itens</h3></div>
             <button id="clearFiltersBtn" class="text-action" type="button">Limpar filtros</button>
           </div>
-          <div class="catalog-search-wrap">
-            <span class="search-symbol">⌕</span>
-            <input id="searchInput" type="search" placeholder="Buscar por nome" aria-label="Buscar item por nome" />
-          </div>
-          <div class="advanced-filters">
-            <select id="desiredFilter" aria-label="Filtrar por possuídos e desejados"><option value="">Possuídos e desejados</option><option value="possessed">Somente possuídos</option><option value="desired">Somente desejados</option></select>
-            <select id="categoryFilter"><option value="">Todas as categorias</option></select>
-            <input id="brandFilter" type="search" placeholder="Marca / fabricante" />
-            <input id="yearFilter" type="search" placeholder="Ano" />
-            <input id="modelFilter" type="search" placeholder="Modelo" />
-            <input id="scaleFilter" type="search" placeholder="Escala" />
-            <select id="rarityFilter"><option value="">Todos os níveis</option><option value="rare">Somente raros</option><option value="not-rare">Excluir raros</option></select>
-            <select id="favoriteFilter"><option value="">Todos os favoritos</option><option value="favorite">Somente favoritos</option></select>
+          <div class="catalog-filters">
+            <label class="catalog-filter-field">
+              Buscar por nome
+              <div class="catalog-search-wrap">
+                <span class="search-symbol">⌕</span>
+                <input id="searchInput" type="search" placeholder="Digite o nome do item" aria-label="Buscar item por nome" />
+              </div>
+            </label>
+            <label class="catalog-filter-field">
+              Categoria
+              <select id="categoryFilter" aria-label="Filtrar por categoria"><option value="">Todas as categorias</option></select>
+            </label>
+            <label class="catalog-filter-field">
+              Favorito
+              <select id="favoriteFilter" aria-label="Filtrar por favorito">
+                <option value="">Todos</option>
+                <option value="favorite">Somente favoritos</option>
+                <option value="not-favorite">Somente não favoritos</option>
+              </select>
+            </label>
           </div>
           <div class="pdf-action-row">
             <div>
