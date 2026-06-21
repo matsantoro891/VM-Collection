@@ -14,7 +14,7 @@ let categoryDraftAttachments = [];
 let editingCategoryId = "";
 let activeCategoryDetailId = "";
 let gridMode = "grid";
-let catalogAppliedFilters = { terms: [], classification: "all", dateFrom: "", dateTo: "" };
+let catalogAppliedFilters = { terms: [], categoryId: "", classification: "all", dateFrom: "", dateTo: "" };
 let catalogHasSearched = false;
 
 const $ = (id) => document.getElementById(id);
@@ -585,6 +585,7 @@ function itemMatchesPeriod(item, dateFrom, dateTo) {
 function readCatalogFormFilters() {
   return {
     terms: parseSearchTerms($("catalogTermsInput")?.value),
+    categoryId: $("categoryFilter")?.value || "",
     classification: $("classificationFilter")?.value || "all",
     dateFrom: $("catalogDateFrom")?.value || "",
     dateTo: $("catalogDateTo")?.value || ""
@@ -604,10 +605,11 @@ function applyCatalogFilters() {
 
 function resetCatalogFilters({ render = true, clearResults = true } = {}) {
   if ($("catalogTermsInput")) $("catalogTermsInput").value = "";
+  if ($("categoryFilter")) $("categoryFilter").value = "";
   if ($("classificationFilter")) $("classificationFilter").value = "all";
   if ($("catalogDateFrom")) $("catalogDateFrom").value = "";
   if ($("catalogDateTo")) $("catalogDateTo").value = "";
-  catalogAppliedFilters = { terms: [], classification: "all", dateFrom: "", dateTo: "" };
+  catalogAppliedFilters = { terms: [], categoryId: "", classification: "all", dateFrom: "", dateTo: "" };
   if (clearResults) catalogHasSearched = false;
   if (render) renderCatalog();
 }
@@ -623,14 +625,15 @@ function renderHome() {
 function catalogListEmptyHtml() {
   if (!items.length) return emptyHtml();
   if (!catalogHasSearched) {
-    return '<div class="empty"><span class="empty-symbol">⌕</span><strong>Defina os critérios e toque em Pesquisar.</strong><p>Use Termos, Classificação e Período para localizar itens do acervo.</p></div>';
+    return '<div class="empty"><span class="empty-symbol">⌕</span><strong>Defina os critérios e toque em Pesquisar.</strong><p>Use Termos, Categoria, Classificação e Período para localizar itens do acervo.</p></div>';
   }
   return '<div class="empty"><span class="empty-symbol">◇</span><strong>Nenhum item encontrado para os critérios selecionados.</strong><p>Ajuste os filtros e toque em Pesquisar novamente.</p></div>';
 }
 
 function filterItems() {
-  const { terms, classification, dateFrom, dateTo } = catalogAppliedFilters;
+  const { terms, categoryId, classification, dateFrom, dateTo } = catalogAppliedFilters;
   return items.filter((item) => itemMatchesSearchTerms(item, terms)
+    && itemBelongsToCategory(item, categoryId)
     && itemMatchesClassification(item, classification)
     && itemMatchesPeriod(item, dateFrom, dateTo));
 }
@@ -658,9 +661,6 @@ function renderCategories() {
   const grouped = getCategoryGroups().sort((a, b) => b.count - a.count);
   const cats = grouped.map((g) => g.cat);
   $("categoriesTotal").textContent = cats.length;
-  const top = grouped[0];
-  $("topCategoryName").textContent = top?.cat || "—";
-  $("topCategoryCount").textContent = top ? `${top.count} item(ns)` : "Sem dados";
   $("categoryCards").innerHTML = grouped.length ? grouped.map(({ id, cat, category, count: groupLength }) => {
     const group = items.filter((i) => itemBelongsToCategory(i, id));
     const total = group.reduce((sum, i) => sum + Number(i.estimatedValue || 0), 0);
@@ -849,6 +849,13 @@ function renderStatsDashboard() {
 
 function updateCategoryControls() {
   const entries = getCategoryOptionEntries();
+  const current = $("categoryFilter")?.value || "";
+  if ($("categoryFilter")) {
+    $("categoryFilter").innerHTML = '<option value="">Todas</option>' + entries.map(({ id, name }) => `<option value="${escapeHtml(id)}">${escapeHtml(name)}</option>`).join("");
+    const validIds = new Set(entries.map((entry) => entry.id));
+    const legacyNameMatch = entries.find((entry) => entry.name === current)?.id || "";
+    $("categoryFilter").value = validIds.has(current) ? current : legacyNameMatch;
+  }
   $("categoryList").innerHTML = entries.map(({ name }) => `<option value="${escapeHtml(name)}">`).join("");
 }
 
@@ -1342,6 +1349,7 @@ function buildCatalogPdfDocument(selectedItems) {
     rare: "Raros"
   };
   const classificationLabel = classificationLabels[catalogAppliedFilters.classification] || "Todos";
+  const categoryLabel = getCategoryNameById(catalogAppliedFilters.categoryId) || "Todas";
   const periodLabel = catalogAppliedFilters.dateFrom || catalogAppliedFilters.dateTo
     ? `${catalogAppliedFilters.dateFrom ? formatDisplayDate(catalogAppliedFilters.dateFrom) : "—"} até ${catalogAppliedFilters.dateTo ? formatDisplayDate(catalogAppliedFilters.dateTo) : "—"}`
     : "Todo o período";
@@ -1431,7 +1439,7 @@ function buildCatalogPdfDocument(selectedItems) {
           <h1>Localizar itens</h1>
           <p class="cover-person">${escapeHtml(personName)}</p>
           <div class="category-box">${selectedItems.length} item(ns)</div>
-          <div class="cover-meta">Termos: ${escapeHtml(termsLabel)}<br>Classificação: ${escapeHtml(classificationLabel)}<br>Período: ${escapeHtml(periodLabel)}<br>Ordem: ${escapeHtml(sortLabel)}<br>Gerado em ${generatedAt}</div>
+          <div class="cover-meta">Termos: ${escapeHtml(termsLabel)}<br>Categoria: ${escapeHtml(categoryLabel)}<br>Classificação: ${escapeHtml(classificationLabel)}<br>Período: ${escapeHtml(periodLabel)}<br>Ordem: ${escapeHtml(sortLabel)}<br>Gerado em ${generatedAt}</div>
         </div>
       </div>
       <div class="cover-footer">VM Collection - Seu acervo digital</div>

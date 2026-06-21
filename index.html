@@ -102,6 +102,12 @@
               </div>
             </label>
             <label class="catalog-filter-field">
+              Categoria
+              <select id="categoryFilter" aria-label="Categoria">
+                <option value="">Todas</option>
+              </select>
+            </label>
+            <label class="catalog-filter-field">
               Classificação
               <select id="classificationFilter" aria-label="Classificação">
                 <option value="all">Todos</option>
@@ -243,12 +249,11 @@
       <!-- CATEGORIAS -->
       <section id="categoriesView" class="view">
         <div class="premium-page-banner category-banner">
-          <div class="page-banner-copy"><span class="eyebrow">ORGANIZAÇÃO</span><h2>Categorias</h2><p>Visualize quantidade e valor estimado por grupo.</p></div>
+          <div class="page-banner-copy"><span class="eyebrow">ORGANIZAÇÃO</span><h2>Categorias</h2></div>
           <div class="banner-icon" id="bannerCategoryIcon"></div>
         </div>
         <div class="category-summary-row">
           <article class="metric-card dark-metric"><span>Categorias cadastradas</span><strong id="categoriesTotal">0</strong></article>
-          <article class="metric-card"><span>Categoria com mais itens</span><strong id="topCategoryName">—</strong><small id="topCategoryCount">Sem dados</small></article>
         </div>
         <div class="section-title with-action">
           <h3>Suas categorias</h3>
