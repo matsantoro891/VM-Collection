@@ -383,11 +383,15 @@
       <div class="category-editor-grid">
         <div>
           <div id="categoryImagePreview" class="category-image-preview"><span>Sem capa</span></div>
-          <button type="button" class="category-cover-btn" id="categoryCoverBtn" aria-label="Selecionar foto de capa da categoria" title="Selecionar foto de capa da categoria">
-            <span id="categoryCoverBtnIcon" aria-hidden="true"></span>
-          </button>
-          <input id="categoryImageInput" type="file" accept="image/*" hidden />
-          <button id="removeCategoryImageBtn" class="text-action" type="button">Remover capa</button>
+          <div class="category-cover-actions">
+            <label class="secondary-btn category-image-button">Escolher da galeria
+              <input id="categoryImageInput" type="file" accept="image/*" hidden />
+            </label>
+            <label class="secondary-btn category-image-button">Tirar foto
+              <input id="categoryCameraInput" type="file" accept="image/*" capture="environment" hidden />
+            </label>
+            <button id="removeCategoryImageBtn" class="text-action" type="button">Remover capa</button>
+          </div>
         </div>
         <div>
           <label class="secondary-btn persistent-file-button">Anexar arquivos à categoria
@@ -396,28 +400,48 @@
           <div id="categoryAttachmentList" class="attachment-list"></div>
         </div>
       </div>
-      <div class="dialog-actions">
+      <div class="dialog-actions category-dialog-actions">
         <button id="saveCategoryMediaBtn" class="primary-btn" type="submit">Salvar categoria</button>
+        <button type="button" id="deleteCategoryBtn" class="ghost-btn danger-btn" hidden>Excluir categoria</button>
       </div>
     </form>
   </dialog>
 
-  <dialog id="categoryDetailDialog" class="category-detail-dialog">
-    <div class="dialog-card category-detail-card">
-      <div class="dialog-title-row">
-        <div><span class="panel-kicker">CATEGORIA</span><h3 id="categoryDetailTitle">Categoria</h3></div>
-        <button id="closeCategoryDetailBtn" class="ghost-btn" type="button">Fechar</button>
+  <dialog id="deleteCategoryDialog" class="confirm-dialog" aria-labelledby="deleteCategoryDialogTitle">
+    <div class="dialog-card confirm-dialog-card">
+      <span class="panel-kicker">EXCLUSÃO</span>
+      <h3 id="deleteCategoryDialogTitle">Excluir categoria</h3>
+      <p id="deleteCategoryDialogMessage">Deseja excluir esta categoria? Essa ação não poderá ser desfeita.</p>
+      <div class="dialog-actions confirm-dialog-actions">
+        <button type="button" class="secondary-btn" id="cancelDeleteCategoryBtn">Cancelar</button>
+        <button type="button" class="primary-btn danger-btn" id="confirmDeleteCategoryBtn">Excluir categoria</button>
       </div>
-      <div id="categoryDetailCover" class="category-detail-cover"></div>
-      <div class="category-detail-summary">
-        <article class="info-mini"><span>Itens</span><strong id="categoryDetailCount">0</strong></article>
-        <article class="info-mini"><span>Valor estimado</span><strong id="categoryDetailValue">R$ 0</strong></article>
+    </div>
+  </dialog>
+
+  <dialog id="categoryDetailDialog" class="category-detail-dialog" aria-label="Detalhes da categoria">
+    <div class="category-detail-shell">
+      <header class="category-detail-header">
+        <div class="dialog-title-row category-detail-title-row">
+          <div class="category-detail-title-copy">
+            <span class="panel-kicker">CATEGORIA</span>
+            <h3 id="categoryDetailTitle">Categoria</h3>
+          </div>
+          <button id="closeCategoryDetailBtn" class="ghost-btn" type="button">Fechar</button>
+        </div>
+      </header>
+      <div class="category-detail-scroll" id="categoryDetailScroll">
+        <div id="categoryDetailCover" class="category-detail-cover"></div>
+        <div class="category-detail-summary">
+          <article class="info-mini"><span>Itens</span><strong id="categoryDetailCount">0</strong></article>
+          <article class="info-mini"><span>Valor estimado</span><strong id="categoryDetailValue">R$ 0</strong></article>
+        </div>
+        <div class="category-detail-actions">
+          <button id="categoryDetailAddBtn" class="primary-btn" type="button">Adicionar item</button>
+          <button id="categoryDetailEditBtn" class="secondary-btn" type="button">Editar categoria</button>
+        </div>
+        <div id="categoryDetailItems" class="category-detail-items cards-grid"></div>
       </div>
-      <div class="category-detail-actions">
-        <button id="categoryDetailAddBtn" class="primary-btn" type="button">Adicionar item</button>
-        <button id="categoryDetailEditBtn" class="secondary-btn" type="button">Editar categoria</button>
-      </div>
-      <div id="categoryDetailItems" class="category-detail-items cards-grid"></div>
     </div>
   </dialog>
 

@@ -13,6 +13,11 @@ let categoryDraftImage = "";
 let categoryDraftAttachments = [];
 let editingCategoryId = "";
 let activeCategoryDetailId = "";
+const categoryDetailState = {
+  isOpen: false,
+  resumeAfterEdit: null,
+  pendingDeleteId: null
+};
 let gridMode = "grid";
 let catalogAppliedFilters = { terms: [], categoryId: "", classification: "all", dateFrom: "", dateTo: "" };
 let catalogHasSearched = false;
@@ -676,9 +681,11 @@ function openCategoryCreator() {
   editingCategoryId = "";
   categoryDraftImage = "";
   categoryDraftAttachments = [];
+  categoryDetailState.resumeAfterEdit = null;
   if ($("categoryEditingId")) $("categoryEditingId").value = "";
   if ($("categoryNameInput")) $("categoryNameInput").value = "";
   if ($("categoryDialogTitle")) $("categoryDialogTitle").textContent = "Nova categoria";
+  if ($("deleteCategoryBtn")) $("deleteCategoryBtn").hidden = true;
   renderCategoryImagePreview();
   renderCategoryAttachmentList();
   $("categoryDialog")?.showModal();
@@ -693,22 +700,34 @@ function openCategoryEditor(id) {
   if ($("categoryEditingId")) $("categoryEditingId").value = category.id;
   if ($("categoryNameInput")) $("categoryNameInput").value = category.name || "";
   if ($("categoryDialogTitle")) $("categoryDialogTitle").textContent = "Editar categoria";
+  if ($("deleteCategoryBtn")) $("deleteCategoryBtn").hidden = false;
   renderCategoryImagePreview();
   renderCategoryAttachmentList();
   $("categoryDialog")?.showModal();
 }
 
-function openCategoryDetail(categoryId, options = {}) {
+async function applyCategoryCoverFile(file) {
+  if (!file) return;
+  if (!file.type.startsWith("image/")) return alert("Selecione uma imagem válida.");
+  categoryDraftImage = await fileToDataUrl(file);
+  renderCategoryImagePreview();
+}
+
+function finishCategoryDetailClose() {
+  if (!categoryDetailState.isOpen) return;
+  categoryDetailState.isOpen = false;
+  unlockPageScroll();
+}
+
+function closeCategoryDetailDialog() {
+  const dialog = $("categoryDetailDialog");
+  if (!dialog?.open) return;
+  dialog.close();
+}
+
+function populateCategoryDetailContent(categoryId) {
   const category = categories.find((c) => c.id === categoryId);
-  if (!category) return;
-  activeCategoryDetailId = categoryId;
-  if (options.preservePageScroll) {
-    document.querySelectorAll(".view").forEach((v) => v.classList.toggle("active", v.id === "categoriesView"));
-    document.querySelectorAll(".nav-item").forEach((b) => b.classList.toggle("active", b.dataset.go === "categoriesView"));
-    renderCategories();
-  } else {
-    showView("categoriesView");
-  }
+  if (!category) return false;
   const linked = items.filter((item) => itemBelongsToCategory(item, categoryId));
   if ($("categoryDetailTitle")) $("categoryDetailTitle").textContent = category.name;
   if ($("categoryDetailCount")) $("categoryDetailCount").textContent = `${linked.length} item(ns)`;
@@ -724,17 +743,118 @@ function openCategoryDetail(categoryId, options = {}) {
       : '<div class="empty"><span class="empty-symbol">◇</span><strong>Nenhum item nesta categoria.</strong><p>Use “Adicionar item” para cadastrar o primeiro.</p></div>';
   }
   if ($("categoryDetailAddBtn")) $("categoryDetailAddBtn").onclick = () => addItemFromCategory(categoryId);
-  if ($("categoryDetailEditBtn")) $("categoryDetailEditBtn").onclick = () => { $("categoryDetailDialog")?.close(); openCategoryEditor(categoryId); };
-  $("categoryDetailDialog")?.showModal();
-  if (options.restoreItemsScroll != null && $("categoryDetailItems")) {
-    $("categoryDetailItems").scrollTop = options.restoreItemsScroll;
+  if ($("categoryDetailEditBtn")) {
+    $("categoryDetailEditBtn").onclick = () => {
+      categoryDetailState.resumeAfterEdit = {
+        categoryId,
+        scroll: $("categoryDetailScroll")?.scrollTop ?? 0
+      };
+      closeCategoryDetailDialog();
+      openCategoryEditor(categoryId);
+    };
   }
+  return true;
+}
+
+function openCategoryDetail(categoryId, options = {}) {
+  const category = categories.find((c) => c.id === categoryId);
+  if (!category) return;
+  activeCategoryDetailId = categoryId;
+  if (options.preservePageScroll) {
+    document.querySelectorAll(".view").forEach((v) => v.classList.toggle("active", v.id === "categoriesView"));
+    document.querySelectorAll(".nav-item").forEach((b) => b.classList.toggle("active", b.dataset.go === "categoriesView"));
+    renderCategories();
+  } else {
+    showView("categoriesView");
+  }
+  if (!populateCategoryDetailContent(categoryId)) return;
+  const scrollEl = $("categoryDetailScroll");
+  if (scrollEl) scrollEl.scrollTop = options.restoreItemsScroll ?? 0;
+  categoryDetailState.isOpen = true;
+  lockPageScroll();
+  $("categoryDetailDialog")?.showModal();
+}
+
+function requestDeleteCategory() {
+  if (!editingCategoryId) return;
+  const category = categories.find((c) => c.id === editingCategoryId);
+  if (!category) return alert("Esta categoria não foi encontrada.");
+  const linkedCount = items.filter((item) => itemBelongsToCategory(item, editingCategoryId)).length;
+  if (linkedCount > 0) {
+    alert(`Esta categoria possui ${linkedCount} item(ns). Mova ou exclua esses itens antes de excluir a categoria.`);
+    return;
+  }
+  if ($("deleteCategoryDialogMessage")) {
+    $("deleteCategoryDialogMessage").textContent = `Deseja excluir a categoria “${category.name}”? Essa ação removerá a capa vinculada e não poderá ser desfeita.`;
+  }
+  categoryDetailState.pendingDeleteId = editingCategoryId;
+  $("deleteCategoryDialog")?.showModal();
+}
+
+async function deleteCategory(categoryId) {
+  const category = categories.find((c) => c.id === categoryId);
+  if (!category) {
+    alert("Esta categoria não foi encontrada.");
+    return false;
+  }
+  const linkedCount = items.filter((item) => itemBelongsToCategory(item, categoryId)).length;
+  if (linkedCount > 0) {
+    alert(`Esta categoria possui ${linkedCount} item(ns). Mova ou exclua esses itens antes de excluir a categoria.`);
+    return false;
+  }
+  try {
+    categories = categories.filter((c) => c.id !== categoryId);
+    await VMStorage.replaceAll("categories", categories);
+    if (activeCategoryDetailId === categoryId) activeCategoryDetailId = "";
+    renderCategories();
+    renderHome();
+    updateCategoryControls();
+    renderCatalog();
+    renderReports();
+    renderStatsDashboard();
+    return true;
+  } catch (error) {
+    console.error(error);
+    alert("Não foi possível excluir esta categoria. Tente novamente.");
+    return false;
+  }
+}
+
+function setupCategoryDetailDialog() {
+  const dialog = $("categoryDetailDialog");
+  $("closeCategoryDetailBtn")?.addEventListener("click", () => closeCategoryDetailDialog());
+  dialog?.addEventListener("close", finishCategoryDetailClose);
+}
+
+function setupDeleteCategoryDialog() {
+  $("deleteCategoryBtn")?.addEventListener("click", () => requestDeleteCategory());
+  $("cancelDeleteCategoryBtn")?.addEventListener("click", () => {
+    categoryDetailState.pendingDeleteId = null;
+    $("deleteCategoryDialog")?.close();
+  });
+  $("deleteCategoryDialog")?.addEventListener("cancel", (e) => {
+    e.preventDefault();
+    categoryDetailState.pendingDeleteId = null;
+    $("deleteCategoryDialog")?.close();
+  });
+  $("confirmDeleteCategoryBtn")?.addEventListener("click", async () => {
+    const categoryId = categoryDetailState.pendingDeleteId;
+    categoryDetailState.pendingDeleteId = null;
+    $("deleteCategoryDialog")?.close();
+    if (!categoryId) return;
+    const deleted = await deleteCategory(categoryId);
+    if (!deleted) return;
+    categoryDetailState.resumeAfterEdit = null;
+    editingCategoryId = "";
+    $("categoryDialog")?.close();
+    closeCategoryDetailDialog();
+  });
 }
 
 function addItemFromCategory(categoryId) {
   const categoryName = getCategoryNameById(categoryId);
   if (!categoryName) return;
-  $("categoryDetailDialog")?.close();
+  closeCategoryDetailDialog();
   clearForm();
   $("category").value = categoryName;
   showView("addView");
@@ -752,6 +872,9 @@ async function saveCategoryMedia() {
   if (!name) return alert("Informe o nome da categoria.");
   const duplicate = categories.find((c) => c.name.toLowerCase() === name.toLowerCase() && c.id !== editingCategoryId);
   if (duplicate) return alert("Já existe uma categoria com este nome.");
+
+  const resume = categoryDetailState.resumeAfterEdit;
+  const savedCategoryId = editingCategoryId;
 
   if (editingCategoryId) {
     const index = categories.findIndex((c) => c.id === editingCategoryId);
@@ -771,12 +894,14 @@ async function saveCategoryMedia() {
       await saveItems();
     }
   } else {
-    categories.push(normalizeCategory({
+    const created = normalizeCategory({
       name,
       image: categoryDraftImage,
       attachments: categoryDraftAttachments,
       updatedAt: new Date().toISOString()
-    }));
+    });
+    categories.push(created);
+    categoryDetailState.resumeAfterEdit = null;
   }
 
   categories.sort((a, b) => a.name.localeCompare(b.name, "pt-BR"));
@@ -784,7 +909,18 @@ async function saveCategoryMedia() {
   renderCategories();
   renderHome();
   updateCategoryControls();
+  renderCatalog();
+  renderReports();
+  renderStatsDashboard();
+  editingCategoryId = "";
+  if ($("deleteCategoryBtn")) $("deleteCategoryBtn").hidden = true;
   $("categoryDialog")?.close();
+
+  const returnCategoryId = resume?.categoryId || savedCategoryId;
+  if (returnCategoryId && categories.some((c) => c.id === returnCategoryId)) {
+    categoryDetailState.resumeAfterEdit = null;
+    openCategoryDetail(returnCategoryId, { preservePageScroll: true, restoreItemsScroll: resume?.scroll ?? 0 });
+  }
 }
 
 function reportBlockFromMap(mapObj) {
@@ -1376,8 +1512,8 @@ function openDetail(id) {
   }
   const categoryDialog = $("categoryDetailDialog");
   if (categoryDialog?.open && activeCategoryDetailId) {
-    itemDetailState.categoryItemsScrollTop = $("categoryDetailItems")?.scrollTop ?? 0;
-    categoryDialog.close();
+    itemDetailState.categoryItemsScrollTop = $("categoryDetailScroll")?.scrollTop ?? 0;
+    closeCategoryDetailDialog();
     openItemDetailDialog(item, { type: "category", categoryId: activeCategoryDetailId }, document.activeElement);
     return;
   }
@@ -1972,11 +2108,11 @@ async function initializePersistentApp() {
   });
 
   $("categoryImageInput").addEventListener("change", async (e) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    if (!file.type.startsWith("image/")) return alert("Selecione uma imagem válida.");
-    categoryDraftImage = await fileToDataUrl(file);
-    renderCategoryImagePreview();
+    await applyCategoryCoverFile(e.target.files?.[0]);
+    e.target.value = "";
+  });
+  $("categoryCameraInput")?.addEventListener("change", async (e) => {
+    await applyCategoryCoverFile(e.target.files?.[0]);
     e.target.value = "";
   });
   $("categoryFilesInput").addEventListener("change", async (e) => {
@@ -1986,9 +2122,10 @@ async function initializePersistentApp() {
     e.target.value = "";
   });
   $("removeCategoryImageBtn").addEventListener("click", () => { categoryDraftImage = ""; renderCategoryImagePreview(); });
-  $("categoryCoverBtn")?.addEventListener("click", () => $("categoryImageInput")?.click());
-  $("closeCategoryDialogBtn").addEventListener("click", () => $("categoryDialog").close());
-  $("closeCategoryDetailBtn")?.addEventListener("click", () => $("categoryDetailDialog")?.close());
+  $("closeCategoryDialogBtn").addEventListener("click", () => {
+    categoryDetailState.resumeAfterEdit = null;
+    $("categoryDialog").close();
+  });
   $("createCategoryBtn")?.addEventListener("click", openCategoryCreator);
   $("categoryMediaForm").addEventListener("submit", async (e) => { e.preventDefault(); await saveCategoryMedia(); });
 
@@ -2043,6 +2180,8 @@ async function initializePersistentApp() {
   setupPhotoViewer();
   setupItemDetailDialog();
   setupDeleteItemDialog();
+  setupCategoryDetailDialog();
+  setupDeleteCategoryDialog();
 }
 
 document.addEventListener("DOMContentLoaded", initializePersistentApp);
