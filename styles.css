@@ -48,7 +48,7 @@ svg{display:block;width:100%;height:100%}
 .hero-card{padding:25px 23px;display:grid;grid-template-columns:1.35fr .75fr;align-items:center;gap:20px}
 .hero-copy{margin-left:-8px;padding-left:2px}
 .hero-card .eyebrow{margin-left:0}
-.hero-card h2{margin:10px 0 18px;font-size:clamp(1.6rem,4vw,2.64rem);line-height:1.02;font-family:Georgia,"Times New Roman",serif}
+.hero-card h2{margin:0 0 18px;font-size:clamp(1.6rem,4vw,2.64rem);line-height:1.02;font-family:Georgia,"Times New Roman",serif}
 .hero-btn,.primary-btn,.secondary-btn,.ghost-btn,.link-btn,.banner-action,.text-action,.media-button{border:0;border-radius:999px;min-height:46px;padding:0 18px;font-weight:750;display:inline-flex;align-items:center;justify-content:center;gap:10px;text-decoration:none}
 .hero-btn{background:#fff;color:var(--ink);min-width:min(100%,245px);min-height:32px;justify-content:flex-start;padding-inline:10px 16px;gap:7px;font-size:0.8rem}
 .hero-plus{width:27px;height:27px;border-radius:50%;display:grid;place-items:center;background:var(--navy);color:#fff;font-size:1.2rem;line-height:1;flex-shrink:0}
