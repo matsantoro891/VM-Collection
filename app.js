@@ -5,8 +5,9 @@ let items = [];
 let categories = [];
 let profile = normalizeProfile();
 let profileDraftPhoto = "";
-let currentPhoto = "";
+let currentPhotos = [];
 let currentVideo = "";
+const MAX_ITEM_PHOTOS = 5;
 let currentItemAttachments = [];
 let categoryDraftImage = "";
 let categoryDraftAttachments = [];
@@ -35,6 +36,9 @@ function iconSvg(type) {
     bars: `<svg viewBox="0 0 24 24"><path ${c} d="M4 20V11h4v9m4 0V7h4v13m4 0V3h3v17M2 20h21"/></svg>`,
     trend: `<svg viewBox="0 0 24 24"><path ${c} d="M4 17 10 11l4 4 6-8"/><path ${c} d="M17 7h3v3"/></svg>`,
     camera: `<svg viewBox="0 0 24 24"><path ${c} d="M4 7h4l2-3h4l2 3h4a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V9a2 2 0 0 1 2-2Zm8 10a4 4 0 1 0 0-8 4 4 0 0 0 0 8Z"/></svg>`,
+    gallery: `<svg viewBox="0 0 24 24"><rect ${c} x="3" y="5" width="18" height="14" rx="2"/><circle ${c} cx="9" cy="11" r="2"/><path ${c} d="m3 17 4.5-4.5a1.5 1.5 0 0 1 2.1 0L14 17"/></svg>`,
+    file: `<svg viewBox="0 0 24 24"><path ${c} d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8l-5-5Z"/><path ${c} d="M14 3v5h5"/></svg>`,
+    video: `<svg viewBox="0 0 24 24"><rect ${c} x="3" y="6" width="13" height="12" rx="2"/><path ${c} d="M16 10.5 21 8v8l-5-2.5v-3Z"/></svg>`,
     profile: `<svg viewBox="0 0 24 24"><circle ${c} cx="12" cy="8" r="4"/><path ${c} d="M4 21a8 8 0 0 1 16 0"/></svg>`,
     shield: `<svg viewBox="0 0 24 24"><path ${c} d="M12 3 4 6v6c0 5 3.5 8 8 9 4.5-1 8-4 8-9V6l-8-3Z"/><path ${c} d="m9 12 2 2 4-5"/></svg>`,
     phone: `<svg viewBox="0 0 24 24"><rect ${c} x="6" y="2" width="12" height="20" rx="3"/><path ${c} d="M10 18h4"/></svg>`,
@@ -75,14 +79,24 @@ function normalizeAttachment(raw = {}) {
   };
 }
 
+function itemPhotosFromRaw(raw = {}) {
+  const photos = Array.isArray(raw.photos) ? raw.photos.map(String).filter(Boolean) : [];
+  const legacy = String(raw.photo || "");
+  if (!photos.length && legacy) return [legacy];
+  return photos;
+}
+
 function normalizeItem(raw = {}) {
+  const photos = itemPhotosFromRaw(raw);
   return {
     id: raw.id || uid(), name: raw.name || "", category: raw.category || "", subcategory: raw.subcategory || "",
     brand: raw.brand || "", model: raw.model || "", scale: raw.scale || "", year: raw.year || "",
     condition: raw.condition || "", paidValue: Number(raw.paidValue || 0), estimatedValue: Number(raw.estimatedValue || 0),
     acquiredAt: raw.acquiredAt || "", acquiredPlace: raw.acquiredPlace || "", serial: raw.serial || "", tags: raw.tags || "",
     description: raw.description || "", notes: raw.notes || "", favorite: !!raw.favorite, desired: !!raw.desired, rare: !!raw.rare,
-    photo: String(raw.photo || ""), video: String(raw.video || ""),
+    photos,
+    photo: photos[0] || String(raw.photo || ""),
+    video: String(raw.video || ""),
     attachments: Array.isArray(raw.attachments) ? raw.attachments.map(normalizeAttachment) : [],
     updatedAt: raw.updatedAt || new Date().toISOString(), createdAt: raw.createdAt || new Date().toISOString()
   };
@@ -437,12 +451,12 @@ function itemBadges(item) {
 
 function itemCard(item) {
   const img = item.photo ? `<img src="${item.photo}" alt="${escapeHtml(item.name)}" onerror="this.hidden=true;this.nextElementSibling.hidden=false"><span hidden>Imagem indisponível</span>` : "<span>Sem foto</span>";
-  return `<article class="item-card" onclick="openDetail('${item.id}')"><div class="item-photo">${img}${itemBadges(item)}</div><div class="item-body"><h4>${escapeHtml(item.name || "Item sem nome")}</h4><div class="meta-line"><span>${escapeHtml(item.category || "Sem categoria")}</span><span>${money(item.estimatedValue)}</span></div><div class="meta-line"><span>${escapeHtml(item.year || item.model || "")}</span><span>${escapeHtml(item.scale || item.condition || "")}</span></div></div></article>`;
+  return `<article class="item-card" onclick="openDetail('${item.id}')"><div class="item-photo">${img}${itemBadges(item)}</div><div class="item-body"><h4>${escapeHtml(item.name || "Item sem nome")}</h4><div class="meta-line"><span>${escapeHtml(item.category || "Sem categoria")}</span><span>${money(item.estimatedValue)}</span></div><div class="meta-line"><span>${escapeHtml(item.year || "")}</span><span>${escapeHtml(item.condition || "")}</span></div></div></article>`;
 }
 
 function recentCard(item) {
   const img = item.photo ? `<img src="${item.photo}" alt="${escapeHtml(item.name)}" onerror="this.hidden=true;this.nextElementSibling.hidden=false"><span hidden>Imagem indisponível</span>` : "<span>Sem foto</span>";
-  const sub = [item.year, item.scale || item.category].filter(Boolean).join(" • ");
+  const sub = [item.year, item.category].filter(Boolean).join(" • ");
   return `<article class="recent-card" onclick="openDetail('${item.id}')"><div class="recent-photo">${img}</div><div class="recent-body"><h4>${escapeHtml(item.name || "Item sem nome")}</h4><p>${escapeHtml(sub || item.category || "Sem categoria")}</p></div></article>`;
 }
 
@@ -658,46 +672,141 @@ function renderAll() {
   renderStatsDashboard();
 }
 
-function setPreview() {
-  $("photoPreview").innerHTML = currentPhoto ? `<img src="${currentPhoto}" alt="Foto principal">` : '<div class="preview-placeholder"><span class="camera-placeholder">⌾</span><strong>Foto principal</strong><small>Use a câmera ou escolha uma imagem</small></div>';
-  $("videoPreview").innerHTML = currentVideo ? `<video src="${currentVideo}" controls playsinline></video>` : "";
+function getPhotoSlotsRemaining() {
+  return Math.max(0, MAX_ITEM_PHOTOS - currentPhotos.length);
+}
+
+function canAddMorePhotos(count = 1) {
+  return getPhotoSlotsRemaining() >= count;
+}
+
+function updatePhotoLimitMessage(extraMessage = "") {
+  const msg = $("photoLimitMsg");
+  if (!msg) return;
+  const atLimit = currentPhotos.length >= MAX_ITEM_PHOTOS;
+  msg.hidden = !atLimit && !extraMessage;
+  msg.textContent = extraMessage || "Limite de 5 fotos atingido.";
+}
+
+function updateMediaMenuPhotoOptions() {
+  const canAdd = canAddMorePhotos();
+  ["mediaTakePhotoBtn", "mediaGalleryBtn"].forEach((id) => {
+    const btn = $(id);
+    if (btn) {
+      btn.disabled = !canAdd;
+      btn.setAttribute("aria-disabled", String(!canAdd));
+    }
+  });
+}
+
+async function addPhotosFromFiles(files, { source = "picker" } = {}) {
+  const imageFiles = [...files].filter((file) => file.type.startsWith("image/"));
+  if (!imageFiles.length) {
+    if (source === "picker" && files.length) alert("Selecione um arquivo de imagem válido.");
+    return { added: 0, skipped: files.length };
+  }
+  const remaining = getPhotoSlotsRemaining();
+  if (remaining <= 0) {
+    updatePhotoLimitMessage();
+    return { added: 0, skipped: imageFiles.length };
+  }
+  const accepted = imageFiles.slice(0, remaining);
+  const skipped = imageFiles.length - accepted.length;
+  for (const file of accepted) {
+    try {
+      currentPhotos.push(await fileToDataUrl(file));
+    } catch (error) {
+      console.error(error);
+      alert("Não foi possível carregar uma das imagens selecionadas.");
+    }
+  }
+  renderPhotoThumbGrid();
+  updatePhotoLimitMessage(skipped > 0 ? `Limite de 5 fotos atingido. ${accepted.length} imagem(ns) adicionada(s).` : "");
+  updateMediaMenuPhotoOptions();
+  return { added: accepted.length, skipped };
+}
+
+function removeItemPhoto(index) {
+  if (index < 0 || index >= currentPhotos.length) return;
+  currentPhotos.splice(index, 1);
+  renderPhotoThumbGrid();
+  updatePhotoLimitMessage();
+  updateMediaMenuPhotoOptions();
+}
+
+function openPhotoLightbox(index) {
+  const src = currentPhotos[index];
+  if (!src) return;
+  const dialog = $("photoLightboxDialog");
+  const img = $("photoLightboxImage");
+  if (!dialog || !img) return;
+  img.src = src;
+  img.alt = index === 0 ? "Foto principal ampliada" : `Foto ${index + 1} ampliada`;
+  dialog.showModal();
+}
+
+function renderPhotoThumbGrid() {
+  const grid = $("photoThumbGrid");
+  if (!grid) return;
+  if (!currentPhotos.length) {
+    grid.innerHTML = "";
+    return;
+  }
+  grid.innerHTML = currentPhotos.map((src, index) => `
+    <div class="photo-thumb-wrap">
+      <button type="button" class="photo-thumb" onclick="openPhotoLightbox(${index})" aria-label="${index === 0 ? "Visualizar foto principal" : `Visualizar foto ${index + 1}`}">
+        <img src="${src}" alt="${index === 0 ? "Foto principal" : `Foto ${index + 1}`}" onerror="this.closest('.photo-thumb-wrap')?.remove()">
+        ${index === 0 ? '<span class="photo-thumb-badge">Principal</span>' : ""}
+      </button>
+      <button type="button" class="photo-thumb-remove" onclick="removeItemPhoto(${index})" aria-label="${index === 0 ? "Excluir foto principal" : `Excluir foto ${index + 1}`}">×</button>
+    </div>
+  `).join("");
+}
+
+function renderMediaSection() {
+  renderPhotoThumbGrid();
+  if ($("videoPreview")) $("videoPreview").innerHTML = currentVideo ? `<video src="${currentVideo}" controls playsinline></video>` : "";
+  updatePhotoLimitMessage();
+  updateMediaMenuPhotoOptions();
 }
 
 function clearForm() {
   $("itemForm").reset();
   $("editingId").value = "";
-  currentPhoto = "";
+  currentPhotos = [];
   currentVideo = "";
   currentItemAttachments = [];
   $("formTitle").textContent = "Adicionar item";
   $("cancelEditBtn").hidden = true;
-  setPreview();
+  renderMediaSection();
   renderItemAttachmentList();
 }
 
 function readForm() {
   const existing = items.find((i) => i.id === $("editingId").value);
+  const photos = [...currentPhotos];
   return normalizeItem({
     id: $("editingId").value || uid(), name: $("name").value.trim(), category: $("category").value.trim(), subcategory: $("subcategory").value.trim(),
-    brand: $("brand").value.trim(), model: $("model").value.trim(), scale: $("scale").value.trim(), year: $("year").value.trim(), condition: $("condition").value,
+    brand: $("brand").value.trim(), model: existing?.model || "", scale: existing?.scale || "", year: $("year").value.trim(), condition: $("condition").value,
     paidValue: $("paidValue").value, estimatedValue: $("estimatedValue").value, acquiredAt: $("acquiredAt").value, acquiredPlace: $("acquiredPlace").value.trim(),
     serial: $("serial").value.trim(), tags: $("tags").value.trim(), description: $("description").value.trim(), notes: $("notes").value.trim(),
-    favorite: $("favorite").checked, desired: $("desired").checked, rare: $("rare").checked, photo: currentPhoto, video: currentVideo,
+    favorite: $("favorite").checked, desired: $("desired").checked, rare: $("rare").checked,
+    photos, photo: photos[0] || "", video: currentVideo,
     attachments: currentItemAttachments.map(normalizeAttachment),
     updatedAt: new Date().toISOString(), createdAt: existing?.createdAt || new Date().toISOString()
   });
 }
 
 function fillForm(item) {
-  ["name", "category", "subcategory", "brand", "model", "scale", "year", "condition", "paidValue", "estimatedValue", "acquiredAt", "acquiredPlace", "serial", "tags", "description", "notes"].forEach((id) => { $(id).value = item[id] || ""; });
+  ["name", "category", "subcategory", "brand", "year", "condition", "paidValue", "estimatedValue", "acquiredAt", "acquiredPlace", "serial", "tags", "description", "notes"].forEach((id) => { $(id).value = item[id] || ""; });
   $("editingId").value = item.id;
   $("favorite").checked = !!item.favorite; $("desired").checked = !!item.desired; $("rare").checked = !!item.rare;
-  currentPhoto = item.photo || "";
+  currentPhotos = itemPhotosFromRaw(item);
   currentVideo = item.video || "";
   currentItemAttachments = (item.attachments || []).map(normalizeAttachment);
   $("formTitle").textContent = "Editar item";
   $("cancelEditBtn").hidden = false;
-  setPreview();
+  renderMediaSection();
   renderItemAttachmentList();
   showView("addView");
 }
@@ -708,7 +817,8 @@ function openDetail(id) {
   const media = item.photo ? `<div class="detail-media"><img src="${item.photo}" alt="${escapeHtml(item.name)}" onerror="this.hidden=true;this.nextElementSibling.hidden=false"><div class="detail-placeholder" hidden>Imagem indisponível</div>${itemBadges(item)}</div>` : '<div class="detail-media"><div class="detail-placeholder">Sem foto</div></div>';
   const markers = [item.favorite ? "Favorito" : "", item.desired ? "Desejado" : "", item.rare ? "Raro" : ""].filter(Boolean).join(" • ");
   const files = item.attachments?.length ? `<section class="detail-attachments"><h3>Arquivos anexados</h3>${renderAttachmentRows(item.attachments, "item", item.id)}</section>` : "";
-  $("detailContent").innerHTML = `<article class="detail-card"><div class="detail-hero">${media}<div class="detail-info"><span class="eyebrow">${escapeHtml(item.category || "Coleção")}</span><h2>${escapeHtml(item.name || "Item sem nome")}</h2><p class="detail-description">${escapeHtml(item.description || "Sem descrição cadastrada.")}</p>${item.video ? `<video class="detail-video" src="${item.video}" controls playsinline></video>` : ""}<div class="detail-table"><div><span>Subcategoria</span>${escapeHtml(item.subcategory || "—")}</div><div><span>Marca / origem</span>${escapeHtml(item.brand || "—")}</div><div><span>Modelo</span>${escapeHtml(item.model || "—")}</div><div><span>Escala</span>${escapeHtml(item.scale || "—")}</div><div><span>Ano</span>${escapeHtml(item.year || "—")}</div><div><span>Estado</span>${escapeHtml(item.condition || "—")}</div><div><span>Valor pago</span>${money(item.paidValue)}</div><div><span>Valor estimado</span>${money(item.estimatedValue)}</div><div><span>Data de aquisição</span>${escapeHtml(item.acquiredAt || "—")}</div><div><span>Local</span>${escapeHtml(item.acquiredPlace || "—")}</div><div><span>Série / código</span>${escapeHtml(item.serial || "—")}</div><div><span>Marcadores</span>${escapeHtml(markers || "—")}</div></div>${files}<p><strong>Observações:</strong> ${escapeHtml(item.notes || "—")}</p><p><small>Criado em ${new Date(item.createdAt).toLocaleString("pt-BR")} · Atualizado em ${new Date(item.updatedAt).toLocaleString("pt-BR")}</small></p><div class="detail-actions"><button class="primary-btn" onclick="editItem('${item.id}')">Editar</button><button class="secondary-btn" onclick="shareItem('${item.id}')">Compartilhar</button><button class="secondary-btn" onclick="printItem('${item.id}')">Gerar ficha/PDF</button><button class="ghost-btn danger-btn" onclick="deleteItem('${item.id}')">Excluir</button></div></div></div></article>`;
+  const observacaoRow = item.tags ? `<div><span>Observação</span>${escapeHtml(item.tags)}</div>` : "";
+  $("detailContent").innerHTML = `<article class="detail-card"><div class="detail-hero">${media}<div class="detail-info"><span class="eyebrow">${escapeHtml(item.category || "Coleção")}</span><h2>${escapeHtml(item.name || "Item sem nome")}</h2><p class="detail-description">${escapeHtml(item.description || "Sem descrição cadastrada.")}</p>${item.video ? `<video class="detail-video" src="${item.video}" controls playsinline></video>` : ""}<div class="detail-table"><div><span>Subcategoria</span>${escapeHtml(item.subcategory || "—")}</div><div><span>Marca / origem</span>${escapeHtml(item.brand || "—")}</div><div><span>Ano</span>${escapeHtml(item.year || "—")}</div><div><span>Estado</span>${escapeHtml(item.condition || "—")}</div><div><span>Valor pago</span>${money(item.paidValue)}</div><div><span>Valor estimado</span>${money(item.estimatedValue)}</div><div><span>Data de aquisição</span>${escapeHtml(item.acquiredAt || "—")}</div><div><span>Local</span>${escapeHtml(item.acquiredPlace || "—")}</div><div><span>Série / código</span>${escapeHtml(item.serial || "—")}</div><div><span>Marcadores</span>${escapeHtml(markers || "—")}</div>${observacaoRow}</div>${files}<p><strong>Observações:</strong> ${escapeHtml(item.notes || "—")}</p><p><small>Criado em ${new Date(item.createdAt).toLocaleString("pt-BR")} · Atualizado em ${new Date(item.updatedAt).toLocaleString("pt-BR")}</small></p><div class="detail-actions"><button class="primary-btn" onclick="editItem('${item.id}')">Editar</button><button class="secondary-btn" onclick="shareItem('${item.id}')">Compartilhar</button><button class="secondary-btn" onclick="printItem('${item.id}')">Gerar ficha/PDF</button><button class="ghost-btn danger-btn" onclick="deleteItem('${item.id}')">Excluir</button></div></div></div></article>`;
   showView("detailView");
 }
 
@@ -741,8 +851,8 @@ function buildCatalogPdfDocument(selectedItems) {
       ? `<img src="${item.photo}" alt="${escapeHtml(item.name)}">`
       : `<div class="item-no-image">VM</div>`;
     const markers = [item.favorite ? "Favorito" : "", item.desired ? "Desejado" : "Possuído", item.rare ? "Raro" : ""].filter(Boolean).join(" • ");
-    const primaryMeta = [item.category, item.year, item.scale].filter(Boolean).map(escapeHtml).join(" • ") || "Sem categoria";
-    const secondaryMeta = [item.brand, item.model].filter(Boolean).map(escapeHtml).join(" • ");
+    const primaryMeta = [item.category, item.year].filter(Boolean).map(escapeHtml).join(" • ") || "Sem categoria";
+    const secondaryMeta = item.brand ? escapeHtml(item.brand) : "";
     return `
       <article class="catalog-row">
         <div class="row-number">${String(index + 1).padStart(2, "0")}</div>
@@ -864,20 +974,34 @@ function clearFilters() {
   renderCatalog();
 }
 
-async function setupVideoRecorder() {
+function setupVideoRecorder() {
   const dialog = $("videoDialog"), live = $("liveVideo");
   let stream = null, recorder = null, chunks = [], timeoutId = null, tick = null, elapsed = 0;
-  $("openVideoBtn").addEventListener("click", async () => {
+
+  async function openVideoRecorder() {
     if (!navigator.mediaDevices?.getUserMedia) return alert("Este navegador não permite gravação direta de vídeo.");
-    try { stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" }, audio: true }); live.srcObject = stream; $("recordStatus").textContent = "Pronto para gravar."; dialog.showModal(); }
-    catch { alert("Permissão de câmera/microfone negada ou indisponível."); }
-  });
+    try {
+      stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" }, audio: true });
+      live.srcObject = stream;
+      $("recordStatus").textContent = "Pronto para gravar.";
+      dialog.showModal();
+    } catch {
+      alert("Permissão de câmera/microfone negada ou indisponível.");
+    }
+  }
+
   $("startRecordBtn").addEventListener("click", () => {
     chunks = []; elapsed = 0; recorder = new MediaRecorder(stream);
     recorder.ondataavailable = (e) => { if (e.data.size) chunks.push(e.data); };
     recorder.onstop = () => {
       clearTimeout(timeoutId); clearInterval(tick);
-      const reader = new FileReader(); reader.onload = () => { currentVideo = reader.result; setPreview(); $("recordStatus").textContent = "Vídeo salvo no cadastro."; }; reader.readAsDataURL(new Blob(chunks, { type: "video/webm" }));
+      const reader = new FileReader();
+      reader.onload = () => {
+        currentVideo = reader.result;
+        renderMediaSection();
+        $("recordStatus").textContent = "Vídeo salvo no cadastro.";
+      };
+      reader.readAsDataURL(new Blob(chunks, { type: "video/webm" }));
       $("startRecordBtn").disabled = false; $("stopRecordBtn").disabled = true;
     };
     recorder.start(); $("startRecordBtn").disabled = true; $("stopRecordBtn").disabled = false;
@@ -885,7 +1009,63 @@ async function setupVideoRecorder() {
     timeoutId = setTimeout(() => { if (recorder?.state === "recording") recorder.stop(); }, 10000);
   });
   $("stopRecordBtn").addEventListener("click", () => { if (recorder?.state === "recording") recorder.stop(); });
-  $("closeVideoBtn").addEventListener("click", () => { if (recorder?.state === "recording") recorder.stop(); if (stream) stream.getTracks().forEach((t) => t.stop()); stream = null; clearInterval(tick); dialog.close(); });
+  $("closeVideoBtn").addEventListener("click", () => {
+    if (recorder?.state === "recording") recorder.stop();
+    if (stream) stream.getTracks().forEach((t) => t.stop());
+    stream = null;
+    clearInterval(tick);
+    dialog.close();
+  });
+
+  return openVideoRecorder;
+}
+
+function setupMediaMenu(openVideoRecorder) {
+  const iconMap = {
+    mediaAddBtnIcon: "camera",
+    mediaMenuCameraIcon: "camera",
+    mediaMenuGalleryIcon: "gallery",
+    mediaMenuFileIcon: "file",
+    mediaMenuVideoIcon: "video"
+  };
+  Object.entries(iconMap).forEach(([id, type]) => { if ($(id)) $(id).innerHTML = iconSvg(type); });
+
+  function closeMediaMenu(returnFocus = true) {
+    const menu = $("mediaMenuDialog");
+    if (!menu?.open) return;
+    menu.close();
+    if (returnFocus) $("openMediaMenuBtn")?.focus();
+  }
+
+  $("openMediaMenuBtn")?.addEventListener("click", () => {
+    updateMediaMenuPhotoOptions();
+    $("mediaMenuDialog")?.showModal();
+  });
+  $("closeMediaMenuBtn")?.addEventListener("click", () => closeMediaMenu());
+  $("mediaMenuDialog")?.addEventListener("cancel", (e) => { e.preventDefault(); closeMediaMenu(); });
+  $("mediaMenuDialog")?.addEventListener("click", (e) => {
+    if (e.target === $("mediaMenuDialog")) closeMediaMenu();
+  });
+  $("mediaTakePhotoBtn")?.addEventListener("click", () => {
+    closeMediaMenu(false);
+    $("cameraInput")?.click();
+  });
+  $("mediaGalleryBtn")?.addEventListener("click", () => {
+    closeMediaMenu(false);
+    $("galleryInput")?.click();
+  });
+  $("mediaFileBtn")?.addEventListener("click", () => {
+    closeMediaMenu(false);
+    $("mediaFileInput")?.click();
+  });
+  $("mediaRecordVideoBtn")?.addEventListener("click", () => {
+    closeMediaMenu(false);
+    openVideoRecorder();
+  });
+  $("closePhotoLightboxBtn")?.addEventListener("click", () => $("photoLightboxDialog")?.close());
+  $("photoLightboxDialog")?.addEventListener("click", (e) => {
+    if (e.target === $("photoLightboxDialog")) $("photoLightboxDialog").close();
+  });
 }
 
 function updateBackupStatus(message, isError = false) {
@@ -983,6 +1163,8 @@ window.openStoredAttachment = openStoredAttachment;
 window.downloadStoredAttachment = downloadStoredAttachment;
 window.removeItemDraftAttachment = removeItemDraftAttachment;
 window.removeCategoryDraftAttachment = removeCategoryDraftAttachment;
+window.removeItemPhoto = removeItemPhoto;
+window.openPhotoLightbox = openPhotoLightbox;
 
 window.addEventListener("beforeinstallprompt", (e) => {
   e.preventDefault();
@@ -1043,7 +1225,7 @@ async function initializePersistentApp() {
 
   renderAll();
   renderProfile();
-  setPreview();
+  renderMediaSection();
   renderItemAttachmentList();
 
   document.addEventListener("click", (e) => {
@@ -1070,7 +1252,7 @@ async function initializePersistentApp() {
 
   $("clearFormBtn").addEventListener("click", clearForm);
   $("cancelEditBtn").addEventListener("click", clearForm);
-  $("removeMediaBtn").addEventListener("click", () => { currentPhoto = ""; currentVideo = ""; setPreview(); });
+  $("removeMediaBtn").addEventListener("click", () => { currentPhotos = []; currentVideo = ""; renderMediaSection(); });
   $("clearFiltersBtn").addEventListener("click", clearFilters);
   $("generateCatalogPdfBtn").addEventListener("click", generateCatalogPdf);
 
@@ -1081,12 +1263,22 @@ async function initializePersistentApp() {
 
   $("cameraInput").addEventListener("change", async (e) => {
     const file = e.target.files?.[0];
-    if (file) { currentPhoto = await fileToDataUrl(file); setPreview(); }
+    if (file) await addPhotosFromFiles([file]);
     e.target.value = "";
   });
   $("galleryInput").addEventListener("change", async (e) => {
-    const file = e.target.files?.[0];
-    if (file) { currentPhoto = await fileToDataUrl(file); setPreview(); }
+    const files = [...(e.target.files || [])];
+    if (files.length) await addPhotosFromFiles(files);
+    e.target.value = "";
+  });
+  $("mediaFileInput").addEventListener("change", async (e) => {
+    const files = [...(e.target.files || [])];
+    if (!files.length) return;
+    const images = files.filter((file) => file.type.startsWith("image/"));
+    const documents = files.filter((file) => !file.type.startsWith("image/"));
+    if (images.length) await addPhotosFromFiles(images, { source: "file" });
+    for (const file of documents) currentItemAttachments.push(await fileToStoredAttachment(file));
+    if (documents.length) renderItemAttachmentList();
     e.target.value = "";
   });
   $("itemFilesInput").addEventListener("change", async (e) => {
@@ -1162,7 +1354,7 @@ async function initializePersistentApp() {
     }
   });
 
-  setupVideoRecorder();
+  setupMediaMenu(setupVideoRecorder());
 }
 
 document.addEventListener("DOMContentLoaded", initializePersistentApp);

@@ -159,7 +159,6 @@
           <div class="page-banner-copy">
             <span class="eyebrow">NOVO CADASTRO</span>
             <h2 id="formTitle">Adicionar item</h2>
-            <p>Registre fotos, vídeo e detalhes importantes em poucos passos.</p>
           </div>
           <div class="banner-icon" id="bannerAddIcon"></div>
         </div>
@@ -171,23 +170,22 @@
             <div class="section-number">01</div>
             <div class="form-section-content">
               <div class="form-section-head"><div><span class="panel-kicker">IMAGENS DO ITEM</span><h3>Foto e vídeo</h3></div><button class="text-action" id="removeMediaBtn" type="button">Remover mídia</button></div>
-              <div class="media-panel">
-                <div class="preview-box" id="photoPreview"><div class="preview-placeholder"><span class="camera-placeholder">⌾</span><strong>Foto principal</strong><small>Use a câmera ou escolha uma imagem</small></div></div>
-                <div class="media-side">
-                  <div class="media-actions">
-                    <label class="media-button primary-media"><span>◉</span>Tirar foto<input id="cameraInput" type="file" accept="image/*" capture="environment" hidden /></label>
-                    <label class="media-button"><span>▧</span>Escolher da galeria<input id="galleryInput" type="file" accept="image/*" hidden /></label>
-                    <button type="button" class="media-button" id="openVideoBtn"><span>▷</span>Gravar vídeo de 10s</button>
-                  </div>
-                  <div class="media-hint"><strong>Dica</strong><p>Fotografe o item com boa luz e fundo neutro para destacar seus detalhes.</p></div>
-                  <div id="videoPreview" class="video-preview"></div>
-                </div>
+              <div class="media-compact-panel">
+                <button type="button" class="media-add-btn" id="openMediaMenuBtn" aria-label="Adicionar foto ou vídeo" aria-haspopup="dialog" aria-controls="mediaMenuDialog">
+                  <span class="media-add-btn-icon" id="mediaAddBtnIcon" aria-hidden="true"></span>
+                  <span class="media-add-btn-label">Adicionar foto ou vídeo</span>
+                </button>
+                <p class="photo-limit-msg" id="photoLimitMsg" hidden role="status">Limite de 5 fotos atingido.</p>
+                <div id="photoThumbGrid" class="photo-thumb-grid" aria-live="polite"></div>
+                <div id="videoPreview" class="video-preview"></div>
               </div>
+              <input id="cameraInput" type="file" accept="image/*" capture="environment" hidden />
+              <input id="galleryInput" type="file" accept="image/*" multiple hidden />
+              <input id="mediaFileInput" type="file" multiple accept="image/*,.pdf,.doc,.docx,.xls,.xlsx,.txt,.zip" hidden />
               <div class="persistent-files-panel">
                 <div class="persistent-files-copy">
                   <span class="panel-kicker">ARQUIVOS PERSISTENTES</span>
-                  <h4>Documentos e anexos do item</h4>
-                  <p>PDFs, imagens e documentos ficam salvos no próprio dispositivo e entram no backup completo.</p>
+                  <h4>Documentos do item</h4>
                 </div>
                 <label class="secondary-btn persistent-file-button">Anexar arquivos
                   <input id="itemFilesInput" type="file" multiple accept="image/*,.pdf,.doc,.docx,.xls,.xlsx,.txt,.zip" hidden />
@@ -206,12 +204,10 @@
                 <label>Categoria<input id="category" list="categoryList" placeholder="Ex: Miniaturas, Relógios" /><datalist id="categoryList"></datalist></label>
                 <label>Subcategoria<input id="subcategory" placeholder="Ex: Premium, Automático" /></label>
                 <label>Marca / fabricante / origem<input id="brand" placeholder="Ex: Mattel, Tag Heuer, Brasil" /></label>
-                <label>Modelo<input id="model" placeholder="Ex: Carrera, R34, GT3" /></label>
-                <label>Escala<input id="scale" placeholder="Ex: 1:64, 1:18" /></label>
                 <label>Ano / data aproximada<input id="year" placeholder="Ex: 2023" /></label>
                 <label>Estado de conservação<select id="condition"><option value="">Não informado</option><option>Novo</option><option>Excelente</option><option>Muito bom</option><option>Bom</option><option>Regular</option><option>Restaurado</option></select></label>
                 <label>Código / número de série<input id="serial" placeholder="Opcional" /></label>
-                <label>Tags<input id="tags" placeholder="raro, importado, edição limitada..." /></label>
+                <label class="field-wide">Observação<textarea id="tags" rows="3" placeholder="Digite uma observação sobre o item"></textarea></label>
               </div>
             </div>
           </section>
@@ -412,6 +408,36 @@
         <button id="saveCategoryMediaBtn" class="primary-btn" type="submit">Salvar categoria</button>
       </div>
     </form>
+  </dialog>
+
+  <dialog id="mediaMenuDialog" class="media-menu-dialog">
+    <div class="media-menu-sheet" role="menu" aria-label="Opções de mídia">
+      <div class="media-menu-handle" aria-hidden="true"></div>
+      <button type="button" class="media-menu-item" id="mediaTakePhotoBtn" role="menuitem">
+        <span class="media-menu-item-icon" id="mediaMenuCameraIcon" aria-hidden="true"></span>
+        <span>Tirar foto</span>
+      </button>
+      <button type="button" class="media-menu-item" id="mediaGalleryBtn" role="menuitem">
+        <span class="media-menu-item-icon" id="mediaMenuGalleryIcon" aria-hidden="true"></span>
+        <span>Escolher da galeria</span>
+      </button>
+      <button type="button" class="media-menu-item" id="mediaFileBtn" role="menuitem">
+        <span class="media-menu-item-icon" id="mediaMenuFileIcon" aria-hidden="true"></span>
+        <span>Escolher arquivo</span>
+      </button>
+      <button type="button" class="media-menu-item" id="mediaRecordVideoBtn" role="menuitem">
+        <span class="media-menu-item-icon" id="mediaMenuVideoIcon" aria-hidden="true"></span>
+        <span>Gravar vídeo de 10s</span>
+      </button>
+      <button type="button" class="media-menu-cancel" id="closeMediaMenuBtn">Cancelar</button>
+    </div>
+  </dialog>
+
+  <dialog id="photoLightboxDialog" class="photo-lightbox-dialog">
+    <div class="dialog-card photo-lightbox-card">
+      <button type="button" class="photo-lightbox-close" id="closePhotoLightboxBtn" aria-label="Fechar visualização">×</button>
+      <img id="photoLightboxImage" src="" alt="Visualização ampliada da foto" />
+    </div>
   </dialog>
 
   <dialog id="videoDialog">
