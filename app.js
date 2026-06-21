@@ -12,6 +12,7 @@ let currentItemAttachments = [];
 let categoryDraftImage = "";
 let categoryDraftAttachments = [];
 let editingCategoryId = "";
+let activeCategoryDetailId = "";
 let gridMode = "grid";
 let catalogAppliedFilters = { search: "", ownership: "", categoryId: "", favorite: "" };
 
@@ -607,10 +608,17 @@ function openCategoryEditor(id) {
   $("categoryDialog")?.showModal();
 }
 
-function openCategoryDetail(categoryId) {
+function openCategoryDetail(categoryId, options = {}) {
   const category = categories.find((c) => c.id === categoryId);
   if (!category) return;
-  showView("categoriesView");
+  activeCategoryDetailId = categoryId;
+  if (options.preservePageScroll) {
+    document.querySelectorAll(".view").forEach((v) => v.classList.toggle("active", v.id === "categoriesView"));
+    document.querySelectorAll(".nav-item").forEach((b) => b.classList.toggle("active", b.dataset.go === "categoriesView"));
+    renderCategories();
+  } else {
+    showView("categoriesView");
+  }
   const linked = items.filter((item) => itemBelongsToCategory(item, categoryId));
   if ($("categoryDetailTitle")) $("categoryDetailTitle").textContent = category.name;
   if ($("categoryDetailCount")) $("categoryDetailCount").textContent = `${linked.length} item(ns)`;
@@ -628,6 +636,9 @@ function openCategoryDetail(categoryId) {
   if ($("categoryDetailAddBtn")) $("categoryDetailAddBtn").onclick = () => addItemFromCategory(categoryId);
   if ($("categoryDetailEditBtn")) $("categoryDetailEditBtn").onclick = () => { $("categoryDetailDialog")?.close(); openCategoryEditor(categoryId); };
   $("categoryDetailDialog")?.showModal();
+  if (options.restoreItemsScroll != null && $("categoryDetailItems")) {
+    $("categoryDetailItems").scrollTop = options.restoreItemsScroll;
+  }
 }
 
 function addItemFromCategory(categoryId) {
@@ -819,15 +830,23 @@ async function addPhotosFromFiles(files, { source = "picker" } = {}) {
   return { added: accepted.length, skipped };
 }
 
+const pageScrollLock = { depth: 0, scrollY: 0 };
+
 const photoViewerState = {
   photos: [],
   index: 0,
   triggerEl: null,
-  scrollY: 0,
   touchStartX: 0,
   touchStartY: 0,
   touchActive: false,
   swiping: false
+};
+
+const itemDetailState = {
+  isOpen: false,
+  returnContext: null,
+  triggerEl: null,
+  categoryItemsScrollTop: 0
 };
 
 function preloadViewerPhotos(index) {
@@ -904,17 +923,23 @@ function goToViewerPhoto(index, animate = true) {
 }
 
 function lockPageScroll() {
-  photoViewerState.scrollY = window.scrollY;
-  document.body.style.position = "fixed";
-  document.body.style.top = `-${photoViewerState.scrollY}px`;
-  document.body.style.left = "0";
-  document.body.style.right = "0";
-  document.body.style.width = "100%";
-  document.body.style.overflow = "hidden";
+  if (pageScrollLock.depth === 0) {
+    pageScrollLock.scrollY = window.scrollY;
+    document.body.style.position = "fixed";
+    document.body.style.top = `-${pageScrollLock.scrollY}px`;
+    document.body.style.left = "0";
+    document.body.style.right = "0";
+    document.body.style.width = "100%";
+    document.body.style.overflow = "hidden";
+  }
+  pageScrollLock.depth += 1;
 }
 
 function unlockPageScroll() {
-  const y = photoViewerState.scrollY;
+  if (pageScrollLock.depth <= 0) return;
+  pageScrollLock.depth -= 1;
+  if (pageScrollLock.depth > 0) return;
+  const y = pageScrollLock.scrollY;
   document.body.style.position = "";
   document.body.style.top = "";
   document.body.style.left = "";
@@ -981,6 +1006,12 @@ function renderDetailMedia(item) {
     ${badges}
     ${thumbs}
   </div>`;
+}
+
+function setupItemDetailDialog() {
+  const dialog = $("itemDetailDialog");
+  $("closeItemDetailBtn")?.addEventListener("click", () => closeItemDetailDialog());
+  dialog?.addEventListener("close", finishItemDetailClose);
 }
 
 function setupPhotoViewer() {
@@ -1112,20 +1143,81 @@ function fillForm(item) {
   showView("addView");
 }
 
-function openDetail(id) {
-  const item = items.find((i) => i.id === id);
-  if (!item) return;
+function buildDetailHtml(item) {
   const media = renderDetailMedia(item);
   const markers = [item.favorite ? "Favorito" : "", item.desired ? "Desejado" : "", item.rare ? "Raro" : ""].filter(Boolean).join(" • ");
   const files = item.attachments?.length ? `<section class="detail-attachments"><h3>Arquivos anexados</h3>${renderAttachmentRows(item.attachments, "item", item.id)}</section>` : "";
   const observacaoRow = item.tags ? `<div><span>Observação</span>${escapeHtml(item.tags)}</div>` : "";
-  $("detailContent").innerHTML = `<article class="detail-card"><div class="detail-hero">${media}<div class="detail-info"><span class="eyebrow">${escapeHtml(item.category || "Coleção")}</span><h2>${escapeHtml(item.name || "Item sem nome")}</h2><p class="detail-description">${escapeHtml(item.description || "Sem descrição cadastrada.")}</p>${item.video ? `<video class="detail-video" src="${item.video}" controls playsinline></video>` : ""}<div class="detail-table"><div><span>Subcategoria</span>${escapeHtml(item.subcategory || "—")}</div><div><span>Marca / origem</span>${escapeHtml(item.brand || "—")}</div><div><span>Ano</span>${escapeHtml(item.year || "—")}</div><div><span>Estado</span>${escapeHtml(item.condition || "—")}</div><div><span>Valor pago</span>${money(item.paidValue)}</div><div><span>Valor estimado</span>${money(item.estimatedValue)}</div><div><span>Data de aquisição</span>${escapeHtml(item.acquiredAt || "—")}</div><div><span>Local</span>${escapeHtml(item.acquiredPlace || "—")}</div><div><span>Série / código</span>${escapeHtml(item.serial || "—")}</div><div><span>Marcadores</span>${escapeHtml(markers || "—")}</div>${observacaoRow}</div>${files}<p><strong>Observações:</strong> ${escapeHtml(item.notes || "—")}</p><p><small>Criado em ${new Date(item.createdAt).toLocaleString("pt-BR")} · Atualizado em ${new Date(item.updatedAt).toLocaleString("pt-BR")}</small></p><div class="detail-actions"><button class="primary-btn" onclick="editItem('${item.id}')">Editar</button><button class="secondary-btn" onclick="shareItem('${item.id}')">Compartilhar</button><button class="secondary-btn" onclick="printItem('${item.id}')">Gerar ficha/PDF</button><button class="ghost-btn danger-btn" onclick="deleteItem('${item.id}')">Excluir</button></div></div></div></article>`;
+  return `<article class="detail-card"><div class="detail-hero">${media}<div class="detail-info"><span class="eyebrow">${escapeHtml(item.category || "Coleção")}</span><h2>${escapeHtml(item.name || "Item sem nome")}</h2><p class="detail-description">${escapeHtml(item.description || "Sem descrição cadastrada.")}</p>${item.video ? `<video class="detail-video" src="${item.video}" controls playsinline></video>` : ""}<div class="detail-table"><div><span>Subcategoria</span>${escapeHtml(item.subcategory || "—")}</div><div><span>Marca / origem</span>${escapeHtml(item.brand || "—")}</div><div><span>Ano</span>${escapeHtml(item.year || "—")}</div><div><span>Estado</span>${escapeHtml(item.condition || "—")}</div><div><span>Valor pago</span>${money(item.paidValue)}</div><div><span>Valor estimado</span>${money(item.estimatedValue)}</div><div><span>Data de aquisição</span>${escapeHtml(item.acquiredAt || "—")}</div><div><span>Local</span>${escapeHtml(item.acquiredPlace || "—")}</div><div><span>Série / código</span>${escapeHtml(item.serial || "—")}</div><div><span>Marcadores</span>${escapeHtml(markers || "—")}</div>${observacaoRow}</div>${files}<p><strong>Observações:</strong> ${escapeHtml(item.notes || "—")}</p><p><small>Criado em ${new Date(item.createdAt).toLocaleString("pt-BR")} · Atualizado em ${new Date(item.updatedAt).toLocaleString("pt-BR")}</small></p><div class="detail-actions"><button class="primary-btn" onclick="editItem('${item.id}')">Editar</button><button class="secondary-btn" onclick="shareItem('${item.id}')">Compartilhar</button><button class="secondary-btn" onclick="printItem('${item.id}')">Gerar ficha/PDF</button><button class="ghost-btn danger-btn" onclick="deleteItem('${item.id}')">Excluir</button></div></div></div></article>`;
+}
+
+function finishItemDetailClose() {
+  if (!itemDetailState.isOpen) return;
+  itemDetailState.isOpen = false;
+  unlockPageScroll();
+  const ctx = itemDetailState.returnContext;
+  const trigger = itemDetailState.triggerEl;
+  const itemsScroll = itemDetailState.categoryItemsScrollTop;
+  itemDetailState.returnContext = null;
+  itemDetailState.triggerEl = null;
+  itemDetailState.categoryItemsScrollTop = 0;
+  if ($("itemDetailContent")) $("itemDetailContent").innerHTML = "";
+  if ($("itemDetailScroll")) $("itemDetailScroll").scrollTop = 0;
+  if (ctx?.type === "category" && ctx.categoryId) {
+    openCategoryDetail(ctx.categoryId, { preservePageScroll: true, restoreItemsScroll: itemsScroll });
+  }
+  trigger?.focus?.();
+}
+
+function closeItemDetailDialog() {
+  const dialog = $("itemDetailDialog");
+  if (!dialog?.open) return;
+  dialog.close();
+}
+
+function openItemDetailDialog(item, returnContext, triggerEl = null) {
+  const dialog = $("itemDetailDialog");
+  const scrollEl = $("itemDetailScroll");
+  const contentEl = $("itemDetailContent");
+  if (!dialog || !scrollEl || !contentEl) return;
+  itemDetailState.isOpen = true;
+  itemDetailState.returnContext = returnContext;
+  itemDetailState.triggerEl = triggerEl || document.activeElement;
+  contentEl.innerHTML = buildDetailHtml(item);
+  scrollEl.scrollTop = 0;
+  lockPageScroll();
+  dialog.showModal();
+}
+
+function openDetail(id) {
+  const item = items.find((i) => i.id === id);
+  if (!item) return;
+  const html = buildDetailHtml(item);
+  const categoryDialog = $("categoryDetailDialog");
+  if (categoryDialog?.open && activeCategoryDetailId) {
+    itemDetailState.categoryItemsScrollTop = $("categoryDetailItems")?.scrollTop ?? 0;
+    categoryDialog.close();
+    openItemDetailDialog(item, { type: "category", categoryId: activeCategoryDetailId }, document.activeElement);
+    return;
+  }
+  $("detailContent").innerHTML = html;
   showView("detailView");
 }
 
-function editItem(id) { const item = items.find((i) => i.id === id); if (item) fillForm(item); }
+function editItem(id) {
+  if ($("itemDetailDialog")?.open) {
+    itemDetailState.returnContext = null;
+    closeItemDetailDialog();
+  }
+  const item = items.find((i) => i.id === id);
+  if (item) fillForm(item);
+}
 async function deleteItem(id) {
   if (!confirm("Excluir este item da coleção?")) return;
+  if ($("itemDetailDialog")?.open) {
+    itemDetailState.returnContext = null;
+    closeItemDetailDialog();
+  }
   items = items.filter((i) => i.id !== id);
   await saveItems();
   showView("catalogView");
@@ -1135,7 +1227,14 @@ function shareItem(id) {
   const text = `VM Collection\n${item.name}\nCategoria: ${item.category || "—"}\nValor estimado: ${money(item.estimatedValue)}`;
   if (navigator.share) navigator.share({ title: item.name, text }).catch(() => {}); else { navigator.clipboard?.writeText(text); alert("Resumo copiado para a área de transferência."); }
 }
-function printItem(id) { openDetail(id); setTimeout(() => window.print(), 250); }
+function printItem(id) {
+  if ($("itemDetailDialog")?.open) {
+    setTimeout(() => window.print(), 250);
+    return;
+  }
+  openDetail(id);
+  setTimeout(() => window.print(), 250);
+}
 
 function buildCatalogPdfDocument(selectedItems) {
   const selectedCategory = getCategoryNameById(catalogAppliedFilters.categoryId) || "Todas as categorias";
@@ -1656,6 +1755,7 @@ async function initializePersistentApp() {
 
   setupMediaMenu(setupVideoRecorder());
   setupPhotoViewer();
+  setupItemDetailDialog();
 }
 
 document.addEventListener("DOMContentLoaded", initializePersistentApp);
