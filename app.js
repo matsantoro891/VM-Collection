@@ -180,6 +180,28 @@ async function saveProfile() {
   }
 }
 
+const HERO_PROFILE_FALLBACK = "assets/icon-192.png";
+
+function updateHeroProfileImage(sourcePhoto = "") {
+  const img = $("heroProfileImage");
+  if (!img) return;
+  const photo = String(sourcePhoto || profileDraftPhoto || profile?.photo || "").trim();
+  const useFallback = () => {
+    img.onerror = null;
+    img.src = HERO_PROFILE_FALLBACK;
+    img.classList.remove("is-user-photo");
+    img.classList.add("is-logo-fallback");
+  };
+  img.onerror = useFallback;
+  if (photo) {
+    img.src = photo;
+    img.classList.add("is-user-photo");
+    img.classList.remove("is-logo-fallback");
+  } else {
+    useFallback();
+  }
+}
+
 function updateProfilePhotoPreview() {
   const src = profileDraftPhoto || "assets/icon-192.png";
   if ($("profilePhotoPreview")) $("profilePhotoPreview").src = src;
@@ -198,7 +220,7 @@ function renderProfile() {
   const displayBio = data.bio?.trim() || "Adicione uma breve descrição sobre você.";
 
   if ($("homeProfileImage")) $("homeProfileImage").src = photo;
-  if ($("heroProfileImage")) $("heroProfileImage").src = photo;
+  updateHeroProfileImage(profileDraftPhoto);
   if ($("profileOverviewImage")) $("profileOverviewImage").src = photo;
   if ($("heroProfileName")) $("heroProfileName").textContent = displayName;
   if ($("profileOverviewName")) $("profileOverviewName").textContent = displayName;
@@ -1099,17 +1121,15 @@ async function initializePersistentApp() {
     if (!file.type.startsWith("image/")) return alert("Selecione um arquivo de imagem válido.");
     profileDraftPhoto = await fileToDataUrl(file);
     updateProfilePhotoPreview();
-    if ($("homeProfileImage")) $("homeProfileImage").src = profileDraftPhoto;
-    if ($("heroProfileImage")) $("heroProfileImage").src = profileDraftPhoto;
+    updateHeroProfileImage(profileDraftPhoto);
     if ($("profileOverviewImage")) $("profileOverviewImage").src = profileDraftPhoto;
     e.target.value = "";
   });
   $("removeProfilePhotoBtn").addEventListener("click", () => {
     profileDraftPhoto = "";
     updateProfilePhotoPreview();
-    if ($("homeProfileImage")) $("homeProfileImage").src = "assets/icon-192.png";
-    if ($("heroProfileImage")) $("heroProfileImage").src = "assets/icon-192.png";
-    if ($("profileOverviewImage")) $("profileOverviewImage").src = "assets/icon-192.png";
+    updateHeroProfileImage("");
+    if ($("profileOverviewImage")) $("profileOverviewImage").src = HERO_PROFILE_FALLBACK;
   });
   $("profileForm").addEventListener("submit", async (e) => {
     e.preventDefault();
