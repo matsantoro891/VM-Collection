@@ -969,8 +969,23 @@ window.addEventListener("beforeinstallprompt", (e) => {
 });
 
 if ("serviceWorker" in navigator) {
+  const getAssetVersion = () => document.querySelector('meta[name="vm-asset-version"]')?.content || "1";
+
+  async function registerCurrentServiceWorker() {
+    const assetVersion = getAssetVersion();
+    const swUrl = `./sw.js?v=${assetVersion}`;
+    const registrations = await navigator.serviceWorker.getRegistrations();
+    await Promise.all(registrations.map(async (registration) => {
+      const scriptUrl = registration.active?.scriptURL || registration.waiting?.scriptURL || registration.installing?.scriptURL || "";
+      if (scriptUrl && !scriptUrl.includes(`v=${assetVersion}`)) await registration.unregister();
+    }));
+    const registration = await navigator.serviceWorker.register(swUrl);
+    await registration.update();
+    return registration;
+  }
+
   window.addEventListener("load", () => {
-    navigator.serviceWorker.register("./sw.js").then((registration) => registration.update()).catch(() => {});
+    registerCurrentServiceWorker().catch(() => {});
   });
 
   let refreshing = false;

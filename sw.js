@@ -1,4 +1,4 @@
-const CACHE = "vm-collection-v7-persistent-files";
+const CACHE = "vm-collection-v8-persistent-files";
 const FILES = [
   "./",
   "./index.html",
