@@ -21,6 +21,9 @@ const categoryDetailState = {
 let gridMode = "grid";
 let catalogAppliedFilters = { terms: [], categoryId: "", classification: "all", dateFrom: "", dateTo: "" };
 let catalogHasSearched = false;
+const CATEGORY_VIEW_STORAGE_KEY = "vmCollection.categoryViewMode";
+let categoryViewMode = localStorage.getItem(CATEGORY_VIEW_STORAGE_KEY) || "lista";
+const globalSearchState = { isOpen: false };
 
 const $ = (id) => document.getElementById(id);
 const money = (value) => Number(value || 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
@@ -106,6 +109,17 @@ function normalizeItem(raw = {}) {
     condition: raw.condition || "", paidValue: Number(raw.paidValue || 0), estimatedValue: Number(raw.estimatedValue || 0),
     acquiredAt: raw.acquiredAt || "", acquiredPlace: raw.acquiredPlace || "", serial: raw.serial || "", tags: raw.tags || "",
     description: raw.description || "", notes: raw.notes || "", favorite: !!raw.favorite, desired, rare: !!raw.rare,
+    freeMemoryText: String(raw.freeMemoryText || ""),
+    memory: String(raw.memory || ""),
+    relatedPerson: String(raw.relatedPerson || ""),
+    relatedPlace: String(raw.relatedPlace || ""),
+    relatedEvent: String(raw.relatedEvent || ""),
+    storageLocation: String(raw.storageLocation || ""),
+    eventDate: String(raw.eventDate || ""),
+    country: String(raw.country || ""),
+    faceValue: String(raw.faceValue || ""),
+    material: String(raw.material || ""),
+    connectedItems: String(raw.connectedItems || ""),
     photos,
     photo: photos[0] || String(raw.photo || ""),
     video: String(raw.video || ""),
@@ -210,6 +224,21 @@ async function saveProfile() {
 
 const HERO_PROFILE_FALLBACK = "assets/icon-192.png";
 
+function getTimeGreeting() {
+  const hour = new Date().getHours();
+  if (hour >= 5 && hour < 12) return "Bom dia";
+  if (hour >= 12 && hour < 18) return "Boa tarde";
+  return "Boa noite";
+}
+
+function updateHomeGreeting() {
+  const el = $("homeGreeting");
+  if (!el) return;
+  const firstName = profile?.name?.trim().split(/\s+/)[0] || "";
+  const greeting = getTimeGreeting();
+  el.textContent = firstName ? `${greeting}, ${firstName}` : greeting;
+}
+
 function updateHeroProfileImage(sourcePhoto = "") {
   const img = $("heroProfileImage");
   if (!img) return;
@@ -248,6 +277,7 @@ function renderProfile() {
   const displayBio = data.bio?.trim() || "Adicione uma breve descrição sobre você.";
 
   if ($("homeProfileImage")) $("homeProfileImage").src = photo;
+  updateHomeGreeting();
   updateHeroProfileImage(profileDraftPhoto);
   if ($("profileOverviewImage")) $("profileOverviewImage").src = photo;
   if ($("heroProfileName")) $("heroProfileName").textContent = displayName;
@@ -454,6 +484,7 @@ function showView(id, options = {}) {
   if (id === "reportsView") renderReports();
   if (id === "statsView") renderStatsDashboard();
   if (id === "categoriesView") renderCategories();
+  if (id === "homeView") renderHome();
   if (id === "catalogView") renderCatalog();
   window.scrollTo({ top: 0, behavior: "smooth" });
 }
@@ -507,7 +538,12 @@ function openCatalogForCategory(categoryId) {
   openCategoryDetail(categoryId);
 }
 
-const ITEM_SEARCH_FIELDS = ["name", "description", "notes", "acquiredPlace", "condition", "category", "subcategory", "brand", "model", "scale", "year", "serial", "tags"];
+const ITEM_SEARCH_FIELDS = [
+  "name", "description", "notes", "acquiredPlace", "condition", "category", "subcategory",
+  "brand", "model", "scale", "year", "serial", "tags",
+  "freeMemoryText", "memory", "relatedPerson", "relatedPlace", "relatedEvent",
+  "storageLocation", "country", "faceValue", "material", "connectedItems"
+];
 
 function stripAccents(text) {
   return String(text || "").normalize("NFD").replace(/\p{M}/gu, "");
@@ -531,6 +567,286 @@ function itemMatchesSearchTerms(item, terms) {
   if (!terms.length) return true;
   const haystack = getItemSearchHaystack(item);
   return terms.every((term) => haystack.includes(term));
+}
+
+function getCategoryViewMode() {
+  return categoryViewMode;
+}
+
+function setCategoryViewMode(mode) {
+  const allowed = ["vitrine", "estante", "timeline", "lista"];
+  categoryViewMode = allowed.includes(mode) ? mode : "lista";
+  localStorage.setItem(CATEGORY_VIEW_STORAGE_KEY, categoryViewMode);
+  updateCategoryViewSwitcherUI();
+}
+
+function updateCategoryViewSwitcherUI() {
+  document.querySelectorAll(".category-view-btn").forEach((btn) => {
+    btn.classList.toggle("is-active", btn.dataset.categoryView === categoryViewMode);
+    btn.setAttribute("aria-selected", String(btn.dataset.categoryView === categoryViewMode));
+  });
+}
+
+function getItemTimelineDate(item) {
+  return item.eventDate || item.acquiredAt || "";
+}
+
+function vitrineCard(item) {
+  const photos = itemPhotosFromRaw(item);
+  const photoHtml = photos.length
+    ? `<img src="${photos[0]}" alt="" onerror="this.parentElement.innerHTML='<span class=\\'vitrine-no-photo\\'>Sem foto</span>'">`
+    : '<span class="vitrine-no-photo">Sem foto</span>';
+  const excerpt = String(item.memory || item.description || "").trim();
+  const excerptHtml = excerpt
+    ? `<p>${escapeHtml(excerpt.length > 140 ? `${excerpt.slice(0, 140)}…` : excerpt)}</p>`
+    : "";
+  return `<article class="vitrine-card" onclick="openDetail('${item.id}')"><div class="vitrine-photo">${photoHtml}</div><div class="vitrine-body"><h4>${escapeHtml(item.name || "Item sem nome")}</h4>${excerptHtml}</div></article>`;
+}
+
+function shelfItemButton(item) {
+  const photos = itemPhotosFromRaw(item);
+  const photoHtml = photos.length
+    ? `<img src="${photos[0]}" alt="" onerror="this.parentElement.innerHTML=''">`
+    : "";
+  return `<button type="button" class="shelf-item" onclick="openDetail('${item.id}')"><div class="shelf-item-photo">${photoHtml}</div><span>${escapeHtml(item.name || "Item")}</span></button>`;
+}
+
+function renderShelfView(list) {
+  const perRow = 5;
+  const rows = [];
+  for (let i = 0; i < list.length; i += perRow) rows.push(list.slice(i, i + perRow));
+  return rows.map((row) => `<div class="shelf-block"><div class="shelf-row">${row.map(shelfItemButton).join("")}</div></div>`).join("");
+}
+
+function renderTimelineView(list) {
+  const sorted = [...list].sort((a, b) => {
+    const ta = parseSortableDate(getItemTimelineDate(a));
+    const tb = parseSortableDate(getItemTimelineDate(b));
+    if (ta === null && tb === null) return compareCatalogNames(a.name, b.name, 1);
+    if (ta === null) return 1;
+    if (tb === null) return -1;
+    return tb - ta;
+  });
+  const groups = new Map();
+  sorted.forEach((item) => {
+    const key = getItemTimelineDate(item) || "sem-data";
+    if (!groups.has(key)) groups.set(key, []);
+    groups.get(key).push(item);
+  });
+  return [...groups.entries()].map(([dateKey, groupItems]) => {
+    const label = dateKey === "sem-data" ? "Sem data definida" : formatItemDate(dateKey);
+    const rows = groupItems.map((item) => {
+      const photos = itemPhotosFromRaw(item);
+      const thumb = photos.length
+        ? `<img src="${photos[0]}" alt="" onerror="this.parentElement.innerHTML=''">`
+        : "";
+      const meta = [item.category, item.year].filter(Boolean).join(" · ");
+      return `<div class="timeline-item" onclick="openDetail('${item.id}')"><div class="timeline-thumb">${thumb}</div><div class="timeline-copy"><strong>${escapeHtml(item.name || "Item")}</strong><small>${escapeHtml(meta || item.description || "")}</small></div></div>`;
+    }).join("");
+    return `<section class="timeline-group"><h4>${escapeHtml(label)}</h4>${rows}</section>`;
+  }).join("");
+}
+
+function renderCategoryItemsView(linked) {
+  const container = $("categoryDetailItems");
+  if (!container) return;
+  const mode = getCategoryViewMode();
+  container.className = `category-detail-items category-view-${mode}${mode === "lista" ? " cards-grid" : ""}`;
+  if (!linked.length) {
+    container.innerHTML = '<div class="empty"><span class="empty-symbol">◇</span><strong>Nenhum item nesta categoria.</strong><p>Use “Adicionar item” para cadastrar o primeiro.</p></div>';
+    return;
+  }
+  switch (mode) {
+    case "vitrine":
+      container.innerHTML = linked.map(vitrineCard).join("");
+      break;
+    case "estante":
+      container.innerHTML = renderShelfView(linked);
+      break;
+    case "timeline":
+      container.innerHTML = renderTimelineView(linked);
+      break;
+    case "lista":
+    default:
+      container.innerHTML = linked.map(itemCard).join("");
+      break;
+  }
+}
+
+function searchItemsGlobally(terms) {
+  if (!terms.length) return [];
+  return sortCatalogItems(items.filter((item) => itemMatchesSearchTerms(item, terms)), "newest");
+}
+
+function globalSearchResultCard(item) {
+  const excerptSource = item.memory || item.description || item.notes || item.storageLocation || "";
+  const excerpt = String(excerptSource).trim();
+  const tags = [item.category, item.relatedPerson, item.storageLocation].filter(Boolean).slice(0, 3);
+  return `<button type="button" class="global-search-result" data-item-id="${escapeHtml(item.id)}"><h4>${escapeHtml(item.name || "Item sem nome")}</h4><p>${escapeHtml(excerpt ? (excerpt.length > 120 ? `${excerpt.slice(0, 120)}…` : excerpt) : "Sem descrição")}</p>${tags.length ? `<div class="global-search-result-meta">${tags.map((tag) => `<span class="global-search-tag">${escapeHtml(tag)}</span>`).join("")}</div>` : ""}</button>`;
+}
+
+function renderGlobalSearchResults() {
+  const box = $("globalSearchResults");
+  const hint = $("globalSearchHint");
+  if (!box) return;
+  const terms = parseSearchTerms($("globalSearchInput")?.value);
+  if (!terms.length) {
+    if (hint) {
+      hint.hidden = false;
+      hint.textContent = "Digite para buscar em todos os itens do acervo.";
+    }
+    box.innerHTML = "";
+    return;
+  }
+  const results = searchItemsGlobally(terms);
+  if (hint) {
+    hint.hidden = false;
+    hint.textContent = results.length
+      ? `${results.length} resultado(s) encontrado(s).`
+      : "Nenhum item encontrado para esta busca.";
+  }
+  box.innerHTML = results.length ? results.map(globalSearchResultCard).join("") : "";
+}
+
+function openGlobalSearchDialog() {
+  const dialog = $("globalSearchDialog");
+  if (!dialog) return;
+  globalSearchState.isOpen = true;
+  if ($("globalSearchInput")) $("globalSearchInput").value = "";
+  renderGlobalSearchResults();
+  lockPageScroll();
+  dialog.showModal();
+  setTimeout(() => $("globalSearchInput")?.focus(), 80);
+}
+
+function finishGlobalSearchClose() {
+  if (!globalSearchState.isOpen) return;
+  globalSearchState.isOpen = false;
+  unlockPageScroll();
+  if ($("globalSearchResults")) $("globalSearchResults").innerHTML = "";
+  if ($("globalSearchInput")) $("globalSearchInput").value = "";
+  if ($("globalSearchHint")) {
+    $("globalSearchHint").hidden = false;
+    $("globalSearchHint").textContent = "Digite para buscar em todos os itens do acervo.";
+  }
+}
+
+function closeGlobalSearchDialog() {
+  const dialog = $("globalSearchDialog");
+  if (!dialog?.open) return;
+  dialog.close();
+}
+
+function setupGlobalSearchDialog() {
+  $("openGlobalSearchBtn")?.addEventListener("click", openGlobalSearchDialog);
+  $("closeGlobalSearchBtn")?.addEventListener("click", closeGlobalSearchDialog);
+  $("globalSearchDialog")?.addEventListener("close", finishGlobalSearchClose);
+  $("globalSearchInput")?.addEventListener("input", renderGlobalSearchResults);
+  $("globalSearchResults")?.addEventListener("click", (e) => {
+    const btn = e.target.closest(".global-search-result[data-item-id]");
+    if (!btn) return;
+    const itemId = btn.dataset.itemId;
+    closeGlobalSearchDialog();
+    openDetail(itemId);
+  });
+}
+
+function getSpeechRecognitionCtor() {
+  return window.SpeechRecognition || window.webkitSpeechRecognition || null;
+}
+
+function applyVoiceSuggestions(text) {
+  const normalized = String(text || "").trim();
+  if (!normalized) return;
+  const freeEl = $("freeMemoryText");
+  if (freeEl && !freeEl.value.trim()) freeEl.value = normalized;
+  const yearMatch = normalized.match(/\b(1[89]\d{2}|20\d{2})\b/);
+  if (yearMatch && $("year") && !$("year").value.trim()) $("year").value = yearMatch[1];
+  const memoryPatterns = [/ganhei\b/i, /meu av[ôo]/i, /minha av[óo]/i, /herdei\b/i, /presente de\b/i, /lembro\b/i, /mem[óo]ria\b/i];
+  if (memoryPatterns.some((pattern) => pattern.test(normalized)) && $("memory") && !$("memory").value.trim()) {
+    $("memory").value = normalized;
+  }
+  const storageMatch = normalized.match(/(?:guardad[oa]|est[áa])\s+(?:na|no|em)\s+([^.,;]+)/i);
+  if (storageMatch && $("storageLocation") && !$("storageLocation").value.trim()) {
+    $("storageLocation").value = storageMatch[1].trim();
+  } else if (/caixa\s+\w+/i.test(normalized) && $("storageLocation") && !$("storageLocation").value.trim()) {
+    const boxMatch = normalized.match(/caixa\s+\w+/i);
+    if (boxMatch) $("storageLocation").value = boxMatch[0];
+  }
+  getCategories().forEach((cat) => {
+    if ($("category")?.value.trim()) return;
+    if (normalized.toLowerCase().includes(cat.toLowerCase())) $("category").value = cat;
+  });
+}
+
+function setupVoiceCapture() {
+  const btn = $("voiceFillBtn");
+  const status = $("voiceStatus");
+  if (!btn) return;
+  const Ctor = getSpeechRecognitionCtor();
+  if (!Ctor) {
+    btn.addEventListener("click", () => {
+      if (status) {
+        status.hidden = false;
+        status.classList.remove("is-recording");
+        status.textContent = "Seu navegador não suporta reconhecimento de voz. Continue preenchendo manualmente.";
+      }
+    });
+    return;
+  }
+  const recognition = new Ctor();
+  recognition.lang = "pt-BR";
+  recognition.interimResults = true;
+  recognition.continuous = false;
+  let listening = false;
+  recognition.onstart = () => {
+    listening = true;
+    if (status) {
+      status.hidden = false;
+      status.classList.add("is-recording");
+      status.textContent = "Ouvindo… fale sobre o item.";
+    }
+  };
+  recognition.onend = () => {
+    listening = false;
+    if (status) status.classList.remove("is-recording");
+  };
+  recognition.onerror = () => {
+    listening = false;
+    if (status) {
+      status.classList.remove("is-recording");
+      status.textContent = "Não foi possível capturar a voz. Tente novamente ou preencha manualmente.";
+    }
+  };
+  recognition.onresult = (event) => {
+    let transcript = "";
+    for (let i = event.resultIndex; i < event.results.length; i += 1) {
+      transcript += event.results[i][0].transcript;
+    }
+    transcript = transcript.trim();
+    if (!transcript) return;
+    applyVoiceSuggestions(transcript);
+    if (status) {
+      status.hidden = false;
+      status.textContent = "Texto capturado. Revise os campos sugeridos antes de salvar.";
+    }
+  };
+  btn.addEventListener("click", () => {
+    if (listening) {
+      recognition.stop();
+      return;
+    }
+    try {
+      recognition.start();
+    } catch {
+      if (status) status.textContent = "Aguarde um instante e tente falar novamente.";
+    }
+  });
+}
+
+async function processPhotoCaptureForItem(files, options = {}) {
+  const result = await addPhotosFromFiles(files, options);
+  return result;
 }
 
 function isItemOwned(item) {
@@ -620,6 +936,7 @@ function resetCatalogFilters({ render = true, clearResults = true } = {}) {
 }
 
 function renderHome() {
+  updateHomeGreeting();
   const grouped = getCategoryGroups();
   const box = $("homeCategoryCards");
   if (box) box.innerHTML = grouped.length ? grouped.map(homeCategoryCard).join("") : homeCategoriesEmptyHtml();
@@ -737,11 +1054,8 @@ function populateCategoryDetailContent(categoryId) {
       ? `<img src="${category.image}" alt="Capa de ${escapeHtml(category.name)}" onerror="this.hidden=true;this.nextElementSibling.hidden=false"><div class="category-cover-placeholder" hidden>${escapeHtml(category.name.slice(0, 2).toUpperCase())}</div>`
       : `<div class="category-cover-placeholder">${escapeHtml(category.name.slice(0, 2).toUpperCase() || "VM")}</div>`;
   }
-  if ($("categoryDetailItems")) {
-    $("categoryDetailItems").innerHTML = linked.length
-      ? linked.map(itemCard).join("")
-      : '<div class="empty"><span class="empty-symbol">◇</span><strong>Nenhum item nesta categoria.</strong><p>Use “Adicionar item” para cadastrar o primeiro.</p></div>';
-  }
+  if ($("categoryDetailItems")) renderCategoryItemsView(linked);
+  updateCategoryViewSwitcherUI();
   if ($("categoryDetailAddBtn")) $("categoryDetailAddBtn").onclick = () => addItemFromCategory(categoryId);
   if ($("categoryDetailEditBtn")) {
     $("categoryDetailEditBtn").onclick = () => {
@@ -824,6 +1138,15 @@ function setupCategoryDetailDialog() {
   const dialog = $("categoryDetailDialog");
   $("closeCategoryDetailBtn")?.addEventListener("click", () => closeCategoryDetailDialog());
   dialog?.addEventListener("close", finishCategoryDetailClose);
+  $("categoryViewSwitcher")?.addEventListener("click", (e) => {
+    const btn = e.target.closest(".category-view-btn[data-category-view]");
+    if (!btn) return;
+    setCategoryViewMode(btn.dataset.categoryView);
+    if (activeCategoryDetailId) {
+      const linked = items.filter((item) => itemBelongsToCategory(item, activeCategoryDetailId));
+      renderCategoryItemsView(linked);
+    }
+  });
 }
 
 function setupDeleteCategoryDialog() {
@@ -1342,28 +1665,52 @@ function clearForm() {
   currentItemAttachments = [];
   $("formTitle").textContent = "Adicionar item";
   $("cancelEditBtn").hidden = true;
+  const voiceStatus = $("voiceStatus");
+  if (voiceStatus) {
+    voiceStatus.hidden = true;
+    voiceStatus.textContent = "";
+    voiceStatus.classList.remove("is-recording");
+  }
   renderMediaSection();
   renderItemAttachmentList();
 }
+
+const ITEM_FORM_TEXT_FIELDS = [
+  "name", "category", "subcategory", "brand", "year", "condition", "paidValue", "estimatedValue",
+  "acquiredAt", "acquiredPlace", "serial", "tags", "description", "notes",
+  "freeMemoryText", "memory", "relatedPerson", "relatedPlace", "relatedEvent", "storageLocation",
+  "eventDate", "country", "faceValue", "material", "connectedItems"
+];
 
 function readForm() {
   const existing = items.find((i) => i.id === $("editingId").value);
   const photos = [...currentPhotos];
   const desired = $("desired").checked;
-  return normalizeItem({
-    id: $("editingId").value || uid(), name: $("name").value.trim(), category: $("category").value.trim(), subcategory: $("subcategory").value.trim(),
-    brand: $("brand").value.trim(), model: existing?.model || "", scale: existing?.scale || "", year: $("year").value.trim(), condition: $("condition").value,
-    paidValue: $("paidValue").value, estimatedValue: $("estimatedValue").value, acquiredAt: $("acquiredAt").value, acquiredPlace: $("acquiredPlace").value.trim(),
-    serial: $("serial").value.trim(), tags: $("tags").value.trim(), description: $("description").value.trim(), notes: $("notes").value.trim(),
-    favorite: $("favorite").checked, desired, rare: $("rare").checked,
-    photos, photo: photos[0] || "", video: currentVideo,
+  const payload = {
+    id: $("editingId").value || uid(),
+    condition: $("condition").value,
+    paidValue: $("paidValue").value,
+    estimatedValue: $("estimatedValue").value,
+    favorite: $("favorite").checked,
+    desired,
+    rare: $("rare").checked,
+    model: existing?.model || "",
+    scale: existing?.scale || "",
+    photos,
+    photo: photos[0] || "",
+    video: currentVideo,
     attachments: currentItemAttachments.map(normalizeAttachment),
-    updatedAt: new Date().toISOString(), createdAt: existing?.createdAt || new Date().toISOString()
+    updatedAt: new Date().toISOString(),
+    createdAt: existing?.createdAt || new Date().toISOString()
+  };
+  ITEM_FORM_TEXT_FIELDS.forEach((id) => {
+    payload[id] = $(id)?.value?.trim?.() ?? $(id)?.value ?? "";
   });
+  return normalizeItem(payload);
 }
 
 function fillForm(item) {
-  ["name", "category", "subcategory", "brand", "year", "condition", "paidValue", "estimatedValue", "acquiredAt", "acquiredPlace", "serial", "tags", "description", "notes"].forEach((id) => { $(id).value = item[id] || ""; });
+  ITEM_FORM_TEXT_FIELDS.forEach((id) => { if ($(id)) $(id).value = item[id] || ""; });
   $("editingId").value = item.id;
   $("favorite").checked = !!item.favorite; $("desired").checked = !!item.desired; $("rare").checked = !!item.rare;
   currentPhotos = itemPhotosFromRaw(item);
@@ -1371,6 +1718,12 @@ function fillForm(item) {
   currentItemAttachments = (item.attachments || []).map(normalizeAttachment);
   $("formTitle").textContent = "Editar item";
   $("cancelEditBtn").hidden = false;
+  const voiceStatus = $("voiceStatus");
+  if (voiceStatus) {
+    voiceStatus.hidden = true;
+    voiceStatus.textContent = "";
+    voiceStatus.classList.remove("is-recording");
+  }
   renderMediaSection();
   renderItemAttachmentList();
   showView("addView");
@@ -1408,6 +1761,22 @@ function detailStatusChips(item) {
 
 function buildDetailHtml(item, { categoryMode = false } = {}) {
   const media = renderDetailMedia(item);
+  const memoryParts = [item.memory, item.freeMemoryText].map((part) => String(part || "").trim()).filter(Boolean);
+  const memoryHtml = memoryParts.length
+    ? `<div class="detail-memory-block"><h3>História e memória</h3><p class="detail-description">${escapeHtml(memoryParts.join("\n\n"))}</p></div>`
+    : "";
+  const descriptionHtml = item.description
+    ? `<section class="detail-text-block"><h3>Descrição</h3><p class="detail-description">${escapeHtml(item.description)}</p></section>`
+    : "";
+  const connectionRows = [
+    detailTableRow("Pessoa relacionada", item.relatedPerson),
+    detailTableRow("Local relacionado", item.relatedPlace),
+    detailTableRow("Evento relacionado", item.relatedEvent),
+    detailTableRow("Itens conectados", item.connectedItems)
+  ].filter(Boolean).join("");
+  const connectionsHtml = connectionRows
+    ? `<section class="detail-album-section"><h3>Pessoas, lugares e eventos</h3><div class="detail-table">${connectionRows}</div></section>`
+    : "";
   const tableRows = [
     detailTableRow("Subcategoria", item.subcategory),
     detailTableRow("Marca / origem", item.brand),
@@ -1417,29 +1786,31 @@ function buildDetailHtml(item, { categoryMode = false } = {}) {
     detailTableRow("Estado de conservação", item.condition),
     detailTableRow("Valor pago", money(item.paidValue)),
     detailTableRow("Valor estimado", money(item.estimatedValue)),
+    detailTableRow("Valor facial", item.faceValue),
+    detailTableRow("Material", item.material),
+    detailTableRow("País", item.country),
     detailTableRow("Data de aquisição", formatItemDate(item.acquiredAt)),
+    detailTableRow("Data do acontecimento", formatItemDate(item.eventDate)),
     detailTableRow("Local de aquisição", item.acquiredPlace),
+    detailTableRow("Local de armazenamento", item.storageLocation),
     detailTableRow("Série / código", item.serial),
-    detailTableRow("Observação", item.tags),
+    detailTableRow("Tags", item.tags),
     detailTableRow("Cadastrado em", formatItemDateTime(item.createdAt)),
     detailTableRow("Atualizado em", formatItemDateTime(item.updatedAt))
   ].filter(Boolean).join("");
-  const tableHtml = tableRows ? `<div class="detail-table">${tableRows}</div>` : "";
-  const descriptionHtml = item.description
-    ? `<section class="detail-text-block"><h3>Descrição</h3><p class="detail-description">${escapeHtml(item.description)}</p></section>`
-    : "";
+  const tableHtml = tableRows ? `<section class="detail-album-section"><h3>Dados técnicos</h3><div class="detail-table">${tableRows}</div></section>` : "";
   const notesHtml = item.notes
     ? `<section class="detail-text-block"><h3>Observações</h3><p class="detail-description">${escapeHtml(item.notes)}</p></section>`
     : "";
   const files = item.attachments?.length
-    ? `<section class="detail-attachments"><h3>Arquivos anexados</h3>${renderAttachmentRows(item.attachments, "item", item.id)}</section>`
+    ? `<section class="detail-attachments detail-album-section"><h3>Arquivos anexados</h3>${renderAttachmentRows(item.attachments, "item", item.id)}</section>`
     : "";
   const videoHtml = item.video ? `<video class="detail-video" src="${item.video}" controls playsinline></video>` : "";
   const actions = categoryMode
     ? `<div class="detail-actions detail-actions-primary"><button class="primary-btn" type="button" onclick="editItem('${item.id}')">Editar item</button><button class="ghost-btn danger-btn" type="button" onclick="requestDeleteItem('${item.id}')">Excluir item</button></div>`
     : `<div class="detail-actions"><button class="primary-btn" type="button" onclick="editItem('${item.id}')">Editar item</button><button class="secondary-btn" type="button" onclick="shareItem('${item.id}')">Compartilhar</button><button class="secondary-btn" type="button" onclick="printItem('${item.id}')">Gerar ficha/PDF</button><button class="ghost-btn danger-btn" type="button" onclick="requestDeleteItem('${item.id}')">Excluir item</button></div>`;
   const stackClass = categoryMode ? " detail-card-stack" : "";
-  return `<article class="detail-card${stackClass}"><div class="detail-hero">${media}<div class="detail-info"><span class="eyebrow">${escapeHtml(item.category || "Coleção")}</span><h2>${escapeHtml(item.name || "Item sem nome")}</h2>${detailStatusChips(item)}${descriptionHtml}${videoHtml}${tableHtml}${notesHtml}${files}${actions}</div></div></article>`;
+  return `<article class="detail-card${stackClass}"><div class="detail-hero">${media}<div class="detail-info"><span class="eyebrow">${escapeHtml(item.category || "Coleção")}</span><h2>${escapeHtml(item.name || "Item sem nome")}</h2>${detailStatusChips(item)}${descriptionHtml}${memoryHtml}${videoHtml}${connectionsHtml}${tableHtml}${notesHtml}${files}${actions}</div></div></article>`;
 }
 
 function refreshItemDetailDialog(itemId) {
@@ -2081,12 +2452,12 @@ async function initializePersistentApp() {
 
   $("cameraInput").addEventListener("change", async (e) => {
     const file = e.target.files?.[0];
-    if (file) await addPhotosFromFiles([file]);
+    if (file) await processPhotoCaptureForItem([file]);
     e.target.value = "";
   });
   $("galleryInput").addEventListener("change", async (e) => {
     const files = [...(e.target.files || [])];
-    if (files.length) await addPhotosFromFiles(files);
+    if (files.length) await processPhotoCaptureForItem(files);
     e.target.value = "";
   });
   $("mediaFileInput").addEventListener("change", async (e) => {
@@ -2182,6 +2553,9 @@ async function initializePersistentApp() {
   setupDeleteItemDialog();
   setupCategoryDetailDialog();
   setupDeleteCategoryDialog();
+  setupGlobalSearchDialog();
+  setupVoiceCapture();
+  updateCategoryViewSwitcherUI();
 }
 
 document.addEventListener("DOMContentLoaded", initializePersistentApp);

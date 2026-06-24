@@ -8,7 +8,7 @@
   <meta name="apple-mobile-web-app-title" content="VM Collection" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
   <title>VM Collection</title>
-  <meta name="vm-asset-version" content="202606208" />
+  <meta name="vm-asset-version" content="202606209" />
   <link rel="manifest" href="manifest.webmanifest" />
   <link rel="apple-touch-icon" href="assets/icon-180.png" />
   <link rel="icon" href="assets/icon-192.png" />
@@ -36,42 +36,28 @@
     <main class="content">
       <!-- INÍCIO -->
       <section id="homeView" class="view active">
-        <div class="hero-card">
-          <div class="hero-copy">
-            <h2>Organize seus catálogos</h2>
-            <button class="hero-btn" data-go="addView" type="button">
-              <span class="hero-plus">+</span>
-              <span>Adicionar item</span>
-            </button>
-          </div>
-          <div class="hero-art">
-            <div class="camera-ring"></div>
-            <div class="hero-profile-block">
-              <div class="hero-profile-frame">
-                <img id="heroProfileImage" class="is-logo-fallback" src="assets/icon-192.png" alt="Foto do perfil em destaque" />
-              </div>
-              <div class="hero-profile-name" id="heroProfileName">Seu nome</div>
-            </div>
-          </div>
+        <div class="home-welcome">
+          <p class="home-greeting" id="homeGreeting">Bom dia</p>
+          <h2 class="home-lead">O que faz parte da sua vida?</h2>
+          <button type="button" class="home-global-search" id="openGlobalSearchBtn" aria-label="Pesquisar em tudo">
+            <span class="home-global-search-icon" aria-hidden="true">⌕</span>
+            <span>Pesquisar em tudo</span>
+          </button>
+          <button class="home-add-btn" data-go="addView" type="button">
+            <span class="home-add-plus" aria-hidden="true">+</span>
+            <span>Adicionar algo</span>
+          </button>
         </div>
 
         <div class="section-title with-action">
-          <h3>Categorias</h3>
+          <h3>Seus catálogos</h3>
           <button class="link-btn" data-go="categoriesView" type="button">Ver todas <span>›</span></button>
         </div>
         <div id="homeCategoryCards" class="home-categories-grid" aria-live="polite"></div>
 
-        <div class="section-title"><h3>Acessos rápidos</h3></div>
-        <div class="quick-grid">
-          <button class="quick-card" data-go="categoriesView" type="button"><div class="quick-icon" id="quickCat"></div><span>Categorias</span></button>
-          <button class="quick-card" data-go="catalogView" type="button"><div class="quick-icon" id="quickFilter"></div><span>Filtros</span></button>
-          <button class="quick-card" data-go="reportsView" type="button"><div class="quick-icon" id="quickReport"></div><span>Relatórios</span></button>
-          <button class="quick-card" data-go="statsView" type="button"><div class="quick-icon" id="quickStats"></div><span>Estatísticas</span></button>
-        </div>
-
         <div class="section-title with-action">
           <h3>Últimos itens adicionados</h3>
-          <button class="link-btn" data-go="catalogView" type="button">Ver todos <span>›</span></button>
+          <button class="link-btn" data-go="catalogView" type="button">Localizar itens <span>›</span></button>
         </div>
         <div id="recentItems" class="recent-row"></div>
         <div class="home-signature" aria-label="Assinatura do aplicativo">——— MSantoro ———</div>
@@ -235,6 +221,30 @@
               </div>
               <label class="wide-label">Descrição<textarea id="description" rows="4" placeholder="Descreva detalhes, procedência e características importantes..."></textarea></label>
               <label class="wide-label">Observações<textarea id="notes" rows="3" placeholder="Anotações livres"></textarea></label>
+            </div>
+          </section>
+
+          <section class="form-section">
+            <div class="section-number">05</div>
+            <div class="form-section-content">
+              <div class="form-section-head">
+                <div><span class="panel-kicker">MEMÓRIA E CONEXÕES</span><h3>História e vínculos</h3></div>
+                <button type="button" class="secondary-btn" id="voiceFillBtn">Preencher por voz</button>
+              </div>
+              <p class="voice-status" id="voiceStatus" hidden role="status"></p>
+              <label class="field-wide">Texto livre da memória<textarea id="freeMemoryText" rows="3" placeholder="Transcrição ou rascunho falado sobre este item..."></textarea></label>
+              <label class="field-wide">História ou memória<textarea id="memory" rows="4" placeholder="Conte a história por trás deste objeto..."></textarea></label>
+              <div class="form-grid">
+                <label>Pessoa relacionada<input id="relatedPerson" placeholder="Ex: meu avô, Maria..." /></label>
+                <label>Local relacionado<input id="relatedPlace" placeholder="Ex: casa da praia, Paris..." /></label>
+                <label>Evento relacionado<input id="relatedEvent" placeholder="Ex: formatura, viagem de 2010..." /></label>
+                <label>Local de armazenamento<input id="storageLocation" placeholder="Ex: caixa azul, adega principal..." /></label>
+                <label>Data do acontecimento<input id="eventDate" type="date" /></label>
+                <label>País<input id="country" placeholder="Ex: Brasil, Argentina..." /></label>
+                <label>Valor facial<input id="faceValue" placeholder="Ex: R$ 1,00, 50 centavos..." /></label>
+                <label>Material<input id="material" placeholder="Ex: prata, papel, vinil..." /></label>
+                <label class="field-wide">Itens conectados<input id="connectedItems" placeholder="Nomes ou referências de itens relacionados, separados por vírgula" /></label>
+              </div>
             </div>
           </section>
 
@@ -407,6 +417,22 @@
     </form>
   </dialog>
 
+  <dialog id="globalSearchDialog" class="global-search-dialog" aria-label="Pesquisar em tudo">
+    <div class="global-search-shell">
+      <header class="global-search-header">
+        <div class="global-search-input-wrap">
+          <span class="search-symbol" aria-hidden="true">⌕</span>
+          <input id="globalSearchInput" type="search" placeholder="Nome, história, pessoa, local..." aria-label="Pesquisar em tudo" autocomplete="off" />
+        </div>
+        <button type="button" class="ghost-btn" id="closeGlobalSearchBtn">Fechar</button>
+      </header>
+      <div class="global-search-scroll" id="globalSearchScroll">
+        <p class="global-search-hint" id="globalSearchHint">Digite para buscar em todos os itens do acervo.</p>
+        <div id="globalSearchResults" class="global-search-results"></div>
+      </div>
+    </div>
+  </dialog>
+
   <dialog id="deleteCategoryDialog" class="confirm-dialog" aria-labelledby="deleteCategoryDialogTitle">
     <div class="dialog-card confirm-dialog-card">
       <span class="panel-kicker">EXCLUSÃO</span>
@@ -439,6 +465,12 @@
         <div class="category-detail-actions">
           <button id="categoryDetailAddBtn" class="primary-btn" type="button">Adicionar item</button>
           <button id="categoryDetailEditBtn" class="secondary-btn" type="button">Editar categoria</button>
+        </div>
+        <div class="category-view-switcher" id="categoryViewSwitcher" role="tablist" aria-label="Modo de visualização">
+          <button type="button" class="category-view-btn" data-category-view="vitrine" role="tab">Vitrine</button>
+          <button type="button" class="category-view-btn" data-category-view="estante" role="tab">Estante</button>
+          <button type="button" class="category-view-btn" data-category-view="timeline" role="tab">Linha do tempo</button>
+          <button type="button" class="category-view-btn is-active" data-category-view="lista" role="tab">Lista</button>
         </div>
         <div id="categoryDetailItems" class="category-detail-items cards-grid"></div>
       </div>
