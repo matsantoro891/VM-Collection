@@ -9,6 +9,7 @@ let currentPhotos = [];
 let currentVideo = "";
 const MAX_ITEM_PHOTOS = 5;
 let currentItemAttachments = [];
+let currentMemoryAudios = [];
 let categoryDraftImage = "";
 let categoryDraftAttachments = [];
 let editingCategoryId = "";
@@ -100,6 +101,18 @@ function itemPhotosFromRaw(raw = {}) {
   return photos;
 }
 
+function normalizeMemoryAudio(raw = {}) {
+  return {
+    id: raw.id || uid(),
+    name: String(raw.name || "Memória em áudio"),
+    type: String(raw.type || "audio/webm"),
+    size: Number(raw.size || 0),
+    duration: Number(raw.duration || 0),
+    addedAt: raw.addedAt || new Date().toISOString(),
+    dataUrl: String(raw.dataUrl || "")
+  };
+}
+
 function normalizeItem(raw = {}) {
   const photos = itemPhotosFromRaw(raw);
   const desired = !!raw.desired;
@@ -120,6 +133,7 @@ function normalizeItem(raw = {}) {
     faceValue: String(raw.faceValue || ""),
     material: String(raw.material || ""),
     connectedItems: String(raw.connectedItems || ""),
+    memoryAudios: Array.isArray(raw.memoryAudios) ? raw.memoryAudios.map(normalizeMemoryAudio) : [],
     photos,
     photo: photos[0] || String(raw.photo || ""),
     video: String(raw.video || ""),
@@ -480,6 +494,7 @@ function removeCategoryDraftAttachment(id) {
 function showView(id, options = {}) {
   document.querySelectorAll(".view").forEach((v) => v.classList.toggle("active", v.id === id));
   document.querySelectorAll(".nav-item").forEach((b) => b.classList.toggle("active", b.dataset.go === id));
+  $("appShell")?.classList.toggle("is-add-view", id === "addView");
   if (id === "catalogView" && options.resetCatalogFilters) resetCatalogFilters({ render: false });
   if (id === "reportsView") renderReports();
   if (id === "statsView") renderStatsDashboard();
@@ -751,97 +766,175 @@ function setupGlobalSearchDialog() {
   });
 }
 
-function getSpeechRecognitionCtor() {
-  return window.SpeechRecognition || window.webkitSpeechRecognition || null;
+const memoryAudioRecorderState = {
+  recorder: null,
+  stream: null,
+  chunks: [],
+  startTime: 0,
+  recording: false
+};
+
+function getSupportedAudioMimeType() {
+  if (!window.MediaRecorder?.isTypeSupported) return "";
+  const types = ["audio/mp4", "audio/aac", "audio/webm;codecs=opus", "audio/webm", "audio/ogg"];
+  return types.find((type) => MediaRecorder.isTypeSupported(type)) || "";
 }
 
-function applyVoiceSuggestions(text) {
-  const normalized = String(text || "").trim();
-  if (!normalized) return;
-  const freeEl = $("freeMemoryText");
-  if (freeEl && !freeEl.value.trim()) freeEl.value = normalized;
-  const yearMatch = normalized.match(/\b(1[89]\d{2}|20\d{2})\b/);
-  if (yearMatch && $("year") && !$("year").value.trim()) $("year").value = yearMatch[1];
-  const memoryPatterns = [/ganhei\b/i, /meu av[ôo]/i, /minha av[óo]/i, /herdei\b/i, /presente de\b/i, /lembro\b/i, /mem[óo]ria\b/i];
-  if (memoryPatterns.some((pattern) => pattern.test(normalized)) && $("memory") && !$("memory").value.trim()) {
-    $("memory").value = normalized;
-  }
-  const storageMatch = normalized.match(/(?:guardad[oa]|est[áa])\s+(?:na|no|em)\s+([^.,;]+)/i);
-  if (storageMatch && $("storageLocation") && !$("storageLocation").value.trim()) {
-    $("storageLocation").value = storageMatch[1].trim();
-  } else if (/caixa\s+\w+/i.test(normalized) && $("storageLocation") && !$("storageLocation").value.trim()) {
-    const boxMatch = normalized.match(/caixa\s+\w+/i);
-    if (boxMatch) $("storageLocation").value = boxMatch[0];
-  }
-  getCategories().forEach((cat) => {
-    if ($("category")?.value.trim()) return;
-    if (normalized.toLowerCase().includes(cat.toLowerCase())) $("category").value = cat;
-  });
+function formatAudioDuration(seconds) {
+  const value = Math.max(0, Math.round(Number(seconds) || 0));
+  const mins = Math.floor(value / 60);
+  const secs = value % 60;
+  return `${mins}:${String(secs).padStart(2, "0")}`;
 }
 
-function setupVoiceCapture() {
-  const btn = $("voiceFillBtn");
-  const status = $("voiceStatus");
+function setMemoryAudioStatus(message, { recording = false, hidden = false } = {}) {
+  const status = $("memoryAudioStatus");
+  if (!status) return;
+  status.hidden = hidden && !message;
+  status.textContent = message || "";
+  status.classList.toggle("is-recording", recording);
+}
+
+function updateMemoryAudioRecordBtn() {
+  const btn = $("recordMemoryAudioBtn");
   if (!btn) return;
-  const Ctor = getSpeechRecognitionCtor();
-  if (!Ctor) {
-    btn.addEventListener("click", () => {
-      if (status) {
-        status.hidden = false;
-        status.classList.remove("is-recording");
-        status.textContent = "Seu navegador não suporta reconhecimento de voz. Continue preenchendo manualmente.";
-      }
-    });
+  btn.textContent = memoryAudioRecorderState.recording ? "Parar gravação" : "Gravar áudio";
+  btn.classList.toggle("is-recording", memoryAudioRecorderState.recording);
+  btn.setAttribute("aria-pressed", String(memoryAudioRecorderState.recording));
+}
+
+async function stopMemoryAudioStream() {
+  memoryAudioRecorderState.stream?.getTracks?.().forEach((track) => track.stop());
+  memoryAudioRecorderState.stream = null;
+}
+
+function renderMemoryAudioList() {
+  const box = $("memoryAudioList");
+  if (!box) return;
+  if (!currentMemoryAudios.length) {
+    box.innerHTML = '<div class="memory-audio-empty">Nenhuma memória em áudio gravada.</div>';
     return;
   }
-  const recognition = new Ctor();
-  recognition.lang = "pt-BR";
-  recognition.interimResults = true;
-  recognition.continuous = false;
-  let listening = false;
-  recognition.onstart = () => {
-    listening = true;
-    if (status) {
-      status.hidden = false;
-      status.classList.add("is-recording");
-      status.textContent = "Ouvindo… fale sobre o item.";
-    }
-  };
-  recognition.onend = () => {
-    listening = false;
-    if (status) status.classList.remove("is-recording");
-  };
-  recognition.onerror = () => {
-    listening = false;
-    if (status) {
-      status.classList.remove("is-recording");
-      status.textContent = "Não foi possível capturar a voz. Tente novamente ou preencha manualmente.";
-    }
-  };
-  recognition.onresult = (event) => {
-    let transcript = "";
-    for (let i = event.resultIndex; i < event.results.length; i += 1) {
-      transcript += event.results[i][0].transcript;
-    }
-    transcript = transcript.trim();
-    if (!transcript) return;
-    applyVoiceSuggestions(transcript);
-    if (status) {
-      status.hidden = false;
-      status.textContent = "Texto capturado. Revise os campos sugeridos antes de salvar.";
-    }
-  };
-  btn.addEventListener("click", () => {
-    if (listening) {
-      recognition.stop();
+  box.innerHTML = currentMemoryAudios.map((audio) => `
+    <div class="memory-audio-row">
+      <audio controls playsinline preload="metadata" src="${audio.dataUrl}"></audio>
+      <div class="memory-audio-meta">
+        <strong>${escapeHtml(audio.name)}</strong>
+        <small>${formatAudioDuration(audio.duration)} · ${formatFileSize(audio.size)} · ${new Date(audio.addedAt).toLocaleDateString("pt-BR")}</small>
+      </div>
+      <button type="button" class="text-action remove-memory-audio-btn" data-audio-id="${escapeHtml(audio.id)}">Remover</button>
+    </div>
+  `).join("");
+}
+
+async function blobToDataUrl(blob) {
+  const file = new File([blob], `memoria-audio-${Date.now()}`, { type: blob.type || "audio/webm" });
+  return fileToDataUrl(file);
+}
+
+async function finalizeMemoryAudioRecording() {
+  const { recorder, chunks, startTime } = memoryAudioRecorderState;
+  const mimeType = recorder?.mimeType || getSupportedAudioMimeType() || "audio/webm";
+  const blob = new Blob(chunks, { type: mimeType });
+  memoryAudioRecorderState.recorder = null;
+  memoryAudioRecorderState.chunks = [];
+  memoryAudioRecorderState.recording = false;
+  memoryAudioRecorderState.startTime = 0;
+  await stopMemoryAudioStream();
+  updateMemoryAudioRecordBtn();
+  if (!blob.size) {
+    setMemoryAudioStatus("Nenhum áudio foi capturado. Tente gravar novamente.");
+    return;
+  }
+  try {
+    const dataUrl = await blobToDataUrl(blob);
+    const duration = Math.max(0, Math.round((Date.now() - startTime) / 1000));
+    currentMemoryAudios.push(normalizeMemoryAudio({
+      id: uid(),
+      name: `Memória em áudio ${currentMemoryAudios.length + 1}`,
+      type: mimeType,
+      size: blob.size,
+      duration,
+      addedAt: new Date().toISOString(),
+      dataUrl
+    }));
+    renderMemoryAudioList();
+    setMemoryAudioStatus("Áudio gravado. Revise e salve o item para manter a memória.");
+  } catch (error) {
+    console.error(error);
+    setMemoryAudioStatus("Não foi possível salvar o áudio gravado. Tente novamente.");
+  }
+}
+
+async function startMemoryAudioRecording() {
+  if (!window.MediaRecorder) {
+    setMemoryAudioStatus("Seu navegador não suporta gravação de áudio. Use outro navegador ou anexe um arquivo de áudio manualmente, se disponível.");
+    return;
+  }
+  const mimeType = getSupportedAudioMimeType();
+  if (!mimeType) {
+    setMemoryAudioStatus("Este navegador não oferece um formato de áudio compatível para gravação.");
+    return;
+  }
+  if (!navigator.mediaDevices?.getUserMedia) {
+    setMemoryAudioStatus("Gravação de áudio indisponível neste dispositivo.");
+    return;
+  }
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    memoryAudioRecorderState.stream = stream;
+    memoryAudioRecorderState.chunks = [];
+    memoryAudioRecorderState.startTime = Date.now();
+    const recorder = new MediaRecorder(stream, { mimeType });
+    memoryAudioRecorderState.recorder = recorder;
+    recorder.ondataavailable = (event) => {
+      if (event.data?.size) memoryAudioRecorderState.chunks.push(event.data);
+    };
+    recorder.onstop = () => { finalizeMemoryAudioRecording().catch(console.error); };
+    recorder.onerror = () => {
+      setMemoryAudioStatus("Não foi possível gravar o áudio. Tente novamente.");
+      memoryAudioRecorderState.recording = false;
+      updateMemoryAudioRecordBtn();
+      stopMemoryAudioStream();
+    };
+    recorder.start();
+    memoryAudioRecorderState.recording = true;
+    updateMemoryAudioRecordBtn();
+    setMemoryAudioStatus("Gravando… toque em “Parar gravação” quando terminar.", { recording: true });
+  } catch (error) {
+    console.error(error);
+    await stopMemoryAudioStream();
+    memoryAudioRecorderState.recording = false;
+    updateMemoryAudioRecordBtn();
+    if (error?.name === "NotAllowedError" || error?.name === "SecurityError") {
+      setMemoryAudioStatus("Permissão do microfone negada. Libere o microfone nas configurações do navegador para gravar.");
       return;
     }
-    try {
-      recognition.start();
-    } catch {
-      if (status) status.textContent = "Aguarde um instante e tente falar novamente.";
-    }
+    setMemoryAudioStatus("Não foi possível acessar o microfone. Tente novamente.");
+  }
+}
+
+function stopMemoryAudioRecording() {
+  const { recorder } = memoryAudioRecorderState;
+  if (!recorder || recorder.state === "inactive") return;
+  memoryAudioRecorderState.recording = false;
+  updateMemoryAudioRecordBtn();
+  setMemoryAudioStatus("Finalizando gravação...");
+  recorder.stop();
+}
+
+function setupMemoryAudioRecorder() {
+  $("recordMemoryAudioBtn")?.addEventListener("click", () => {
+    if (memoryAudioRecorderState.recording) stopMemoryAudioRecording();
+    else startMemoryAudioRecording();
   });
+  $("memoryAudioList")?.addEventListener("click", (e) => {
+    const btn = e.target.closest(".remove-memory-audio-btn");
+    if (!btn?.dataset.audioId) return;
+    currentMemoryAudios = currentMemoryAudios.filter((audio) => audio.id !== btn.dataset.audioId);
+    renderMemoryAudioList();
+  });
+  renderMemoryAudioList();
 }
 
 async function processPhotoCaptureForItem(files, options = {}) {
@@ -1663,24 +1756,24 @@ function clearForm() {
   currentPhotos = [];
   currentVideo = "";
   currentItemAttachments = [];
+  currentMemoryAudios = [];
   $("formTitle").textContent = "Adicionar item";
   $("cancelEditBtn").hidden = true;
-  const voiceStatus = $("voiceStatus");
-  if (voiceStatus) {
-    voiceStatus.hidden = true;
-    voiceStatus.textContent = "";
-    voiceStatus.classList.remove("is-recording");
-  }
+  if (memoryAudioRecorderState.recording) stopMemoryAudioRecording();
+  setMemoryAudioStatus("", { hidden: true });
   renderMediaSection();
   renderItemAttachmentList();
+  renderMemoryAudioList();
 }
 
 const ITEM_FORM_TEXT_FIELDS = [
-  "name", "category", "subcategory", "brand", "year", "condition", "paidValue", "estimatedValue",
-  "acquiredAt", "acquiredPlace", "serial", "tags", "description", "notes",
-  "freeMemoryText", "memory", "relatedPerson", "relatedPlace", "relatedEvent", "storageLocation",
-  "eventDate", "country", "faceValue", "material", "connectedItems"
+  "name", "category", "brand", "year", "description", "tags",
+  "memory", "relatedPerson", "relatedPlace", "relatedEvent", "storageLocation",
+  "eventDate", "country", "material", "connectedItems",
+  "paidValue", "estimatedValue", "acquiredAt", "acquiredPlace"
 ];
+
+const LEGACY_ITEM_FIELDS = ["subcategory", "condition", "serial", "notes", "freeMemoryText", "faceValue"];
 
 function readForm() {
   const existing = items.find((i) => i.id === $("editingId").value);
@@ -1688,7 +1781,6 @@ function readForm() {
   const desired = $("desired").checked;
   const payload = {
     id: $("editingId").value || uid(),
-    condition: $("condition").value,
     paidValue: $("paidValue").value,
     estimatedValue: $("estimatedValue").value,
     favorite: $("favorite").checked,
@@ -1700,11 +1792,15 @@ function readForm() {
     photo: photos[0] || "",
     video: currentVideo,
     attachments: currentItemAttachments.map(normalizeAttachment),
+    memoryAudios: currentMemoryAudios.map(normalizeMemoryAudio),
     updatedAt: new Date().toISOString(),
     createdAt: existing?.createdAt || new Date().toISOString()
   };
   ITEM_FORM_TEXT_FIELDS.forEach((id) => {
     payload[id] = $(id)?.value?.trim?.() ?? $(id)?.value ?? "";
+  });
+  LEGACY_ITEM_FIELDS.forEach((field) => {
+    payload[field] = existing?.[field] ?? "";
   });
   return normalizeItem(payload);
 }
@@ -1716,16 +1812,14 @@ function fillForm(item) {
   currentPhotos = itemPhotosFromRaw(item);
   currentVideo = item.video || "";
   currentItemAttachments = (item.attachments || []).map(normalizeAttachment);
+  currentMemoryAudios = (item.memoryAudios || []).map(normalizeMemoryAudio);
   $("formTitle").textContent = "Editar item";
   $("cancelEditBtn").hidden = false;
-  const voiceStatus = $("voiceStatus");
-  if (voiceStatus) {
-    voiceStatus.hidden = true;
-    voiceStatus.textContent = "";
-    voiceStatus.classList.remove("is-recording");
-  }
+  if (memoryAudioRecorderState.recording) stopMemoryAudioRecording();
+  setMemoryAudioStatus("", { hidden: true });
   renderMediaSection();
   renderItemAttachmentList();
+  renderMemoryAudioList();
   showView("addView");
 }
 
@@ -1764,6 +1858,9 @@ function buildDetailHtml(item, { categoryMode = false } = {}) {
   const memoryParts = [item.memory, item.freeMemoryText].map((part) => String(part || "").trim()).filter(Boolean);
   const memoryHtml = memoryParts.length
     ? `<div class="detail-memory-block"><h3>História e memória</h3><p class="detail-description">${escapeHtml(memoryParts.join("\n\n"))}</p></div>`
+    : "";
+  const memoryAudiosHtml = item.memoryAudios?.length
+    ? `<section class="detail-album-section detail-memory-audio"><h3>Memórias em áudio</h3>${item.memoryAudios.map((audio) => `<div class="memory-audio-row"><audio controls playsinline preload="metadata" src="${audio.dataUrl}"></audio><small>${escapeHtml(audio.name)} · ${formatAudioDuration(audio.duration)}</small></div>`).join("")}</section>`
     : "";
   const descriptionHtml = item.description
     ? `<section class="detail-text-block"><h3>Descrição</h3><p class="detail-description">${escapeHtml(item.description)}</p></section>`
@@ -1810,7 +1907,7 @@ function buildDetailHtml(item, { categoryMode = false } = {}) {
     ? `<div class="detail-actions detail-actions-primary"><button class="primary-btn" type="button" onclick="editItem('${item.id}')">Editar item</button><button class="ghost-btn danger-btn" type="button" onclick="requestDeleteItem('${item.id}')">Excluir item</button></div>`
     : `<div class="detail-actions"><button class="primary-btn" type="button" onclick="editItem('${item.id}')">Editar item</button><button class="secondary-btn" type="button" onclick="shareItem('${item.id}')">Compartilhar</button><button class="secondary-btn" type="button" onclick="printItem('${item.id}')">Gerar ficha/PDF</button><button class="ghost-btn danger-btn" type="button" onclick="requestDeleteItem('${item.id}')">Excluir item</button></div>`;
   const stackClass = categoryMode ? " detail-card-stack" : "";
-  return `<article class="detail-card${stackClass}"><div class="detail-hero">${media}<div class="detail-info"><span class="eyebrow">${escapeHtml(item.category || "Coleção")}</span><h2>${escapeHtml(item.name || "Item sem nome")}</h2>${detailStatusChips(item)}${descriptionHtml}${memoryHtml}${videoHtml}${connectionsHtml}${tableHtml}${notesHtml}${files}${actions}</div></div></article>`;
+  return `<article class="detail-card${stackClass}"><div class="detail-hero">${media}<div class="detail-info"><span class="eyebrow">${escapeHtml(item.category || "Coleção")}</span><h2>${escapeHtml(item.name || "Item sem nome")}</h2>${detailStatusChips(item)}${descriptionHtml}${memoryHtml}${memoryAudiosHtml}${videoHtml}${connectionsHtml}${tableHtml}${notesHtml}${files}${actions}</div></div></article>`;
 }
 
 function refreshItemDetailDialog(itemId) {
@@ -2270,7 +2367,7 @@ async function exportBackupNative() {
     if (navigator.share && navigator.canShare?.({ files: [file] })) {
       await navigator.share({
         title: "Backup completo do VM Collection",
-        text: "Backup com perfil, categorias, itens, imagens, vídeos e arquivos anexados.",
+        text: "Backup com perfil, categorias, itens, imagens, vídeos, áudios e arquivos anexados.",
         files: [file]
       });
       updateBackupStatus("Backup enviado para o destino escolhido.");
@@ -2393,6 +2490,7 @@ async function initializePersistentApp() {
   renderProfile();
   renderMediaSection();
   renderItemAttachmentList();
+  renderMemoryAudioList();
   resetCatalogFilters({ render: true });
 
   document.addEventListener("click", (e) => {
@@ -2554,7 +2652,7 @@ async function initializePersistentApp() {
   setupCategoryDetailDialog();
   setupDeleteCategoryDialog();
   setupGlobalSearchDialog();
-  setupVoiceCapture();
+  setupMemoryAudioRecorder();
   updateCategoryViewSwitcherUI();
 }
 

@@ -8,11 +8,11 @@
   <meta name="apple-mobile-web-app-title" content="VM Collection" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
   <title>VM Collection</title>
-  <meta name="vm-asset-version" content="202606209" />
+  <meta name="vm-asset-version" content="202607031" />
   <link rel="manifest" href="manifest.webmanifest" />
   <link rel="apple-touch-icon" href="assets/icon-180.png" />
   <link rel="icon" href="assets/icon-192.png" />
-  <link rel="stylesheet" href="styles.css?v=202606208" />
+  <link rel="stylesheet" href="styles.css?v=202607031" />
 </head>
 <body>
   <div id="appShell">
@@ -140,7 +140,7 @@
 
       <!-- CADASTRO -->
       <section id="addView" class="view">
-        <div class="premium-page-banner add-banner">
+        <div class="premium-page-banner add-banner compact-add-banner">
           <div class="page-banner-copy">
             <span class="eyebrow">NOVO CADASTRO</span>
             <h2 id="formTitle">Adicionar item</h2>
@@ -156,9 +156,9 @@
             <div class="form-section-content">
               <div class="form-section-head"><div><span class="panel-kicker">IMAGENS DO ITEM</span><h3>Foto e vídeo</h3></div><button class="text-action" id="removeMediaBtn" type="button">Remover mídia</button></div>
               <div class="media-compact-panel">
-                <button type="button" class="media-add-btn" id="openMediaMenuBtn" aria-label="Adicionar foto ou vídeo" aria-haspopup="dialog" aria-controls="mediaMenuDialog">
+                <button type="button" class="media-add-btn" id="openMediaMenuBtn" aria-label="Adicionar mídia" aria-haspopup="dialog" aria-controls="mediaMenuDialog">
                   <span class="media-add-btn-icon" id="mediaAddBtnIcon" aria-hidden="true"></span>
-                  <span class="media-add-btn-label">Adicionar foto ou vídeo</span>
+                  <span class="media-add-btn-label">Adicionar mídia</span>
                 </button>
                 <p class="photo-limit-msg" id="photoLimitMsg" hidden role="status">Limite de 5 fotos atingido.</p>
                 <div id="photoThumbGrid" class="photo-thumb-grid" aria-live="polite"></div>
@@ -180,18 +180,16 @@
             </div>
           </section>
 
-          <section class="form-section">
+          <section class="form-section form-identification-section">
             <div class="section-number">02</div>
             <div class="form-section-content">
-              <div class="form-section-head"><div><span class="panel-kicker">IDENTIFICAÇÃO</span><h3>Informações principais</h3></div></div>
+              <div class="form-section-head"><div><span class="panel-kicker form-kicker-compact">INFORMAÇÕES PRINCIPAIS</span><h3>Informações principais</h3></div></div>
               <div class="form-grid">
                 <label class="field-wide">Nome do item<input id="name" required placeholder="Ex: Porsche 911 GT3, moeda comemorativa..." /></label>
                 <label>Categoria<input id="category" list="categoryList" placeholder="Ex: Miniaturas, Relógios" /><datalist id="categoryList"></datalist></label>
-                <label>Subcategoria<input id="subcategory" placeholder="Ex: Premium, Automático" /></label>
-                <label>Marca / fabricante / origem<input id="brand" placeholder="Ex: Mattel, Tag Heuer, Brasil" /></label>
-                <label>Ano / data aproximada<input id="year" placeholder="Ex: 2023" /></label>
-                <label>Estado de conservação<select id="condition"><option value="">Não informado</option><option>Novo</option><option>Excelente</option><option>Muito bom</option><option>Bom</option><option>Regular</option><option>Restaurado</option></select></label>
-                <label>Código / número de série<input id="serial" placeholder="Opcional" /></label>
+                <label>Marca/Produtor<input id="brand" placeholder="Ex: Mattel, Tag Heuer, Brasil" /></label>
+                <label>Data<input id="year" placeholder="Ex: 2023" /></label>
+                <label class="field-wide">Descrição<textarea id="description" rows="4" placeholder="Descreva detalhes, procedência e características importantes..."></textarea></label>
                 <label class="field-wide">Observação<textarea id="tags" rows="3" placeholder="Digite uma observação sobre o item"></textarea></label>
               </div>
             </div>
@@ -200,12 +198,11 @@
           <section class="form-section">
             <div class="section-number">03</div>
             <div class="form-section-content">
-              <div class="form-section-head"><div><span class="panel-kicker">AQUISIÇÃO E VALOR</span><h3>Histórico do item</h3></div></div>
-              <div class="form-grid">
-                <label>Valor pago<input id="paidValue" type="number" min="0" step="0.01" placeholder="0,00" /></label>
-                <label>Valor estimado atual<input id="estimatedValue" type="number" min="0" step="0.01" placeholder="0,00" /></label>
-                <label>Data de aquisição<input id="acquiredAt" type="date" /></label>
-                <label>Local de aquisição<input id="acquiredPlace" placeholder="Loja, feira, leilão..." /></label>
+              <div class="form-section-head"><div><span class="panel-kicker">CLASSIFICAÇÃO</span><h3>Marcadores especiais</h3></div></div>
+              <div class="flags-row">
+                <label class="check-tile"><input id="favorite" type="checkbox" /><span class="flag-icon">☆</span><span><strong>Favorito</strong><small>Item de destaque</small></span></label>
+                <label class="check-tile"><input id="desired" type="checkbox" /><span class="flag-icon">♡</span><span><strong>Desejado</strong><small>Quero adquirir</small></span></label>
+                <label class="check-tile"><input id="rare" type="checkbox" /><span class="flag-icon">◇</span><span><strong>Raro</strong><small>Item de raridade</small></span></label>
               </div>
             </div>
           </section>
@@ -213,26 +210,12 @@
           <section class="form-section">
             <div class="section-number">04</div>
             <div class="form-section-content">
-              <div class="form-section-head"><div><span class="panel-kicker">CLASSIFICAÇÃO</span><h3>Marcadores especiais</h3></div></div>
-              <div class="flags-row">
-                <label class="check-tile"><input id="favorite" type="checkbox" /><span class="flag-icon">☆</span><span><strong>Favorito</strong><small>Item de destaque</small></span></label>
-                <label class="check-tile"><input id="desired" type="checkbox" /><span class="flag-icon">♡</span><span><strong>Desejado</strong><small>Quero adquirir</small></span></label>
-                <label class="check-tile"><input id="rare" type="checkbox" /><span class="flag-icon">◇</span><span><strong>Raro</strong><small>Item de raridade</small></span></label>
-              </div>
-              <label class="wide-label">Descrição<textarea id="description" rows="4" placeholder="Descreva detalhes, procedência e características importantes..."></textarea></label>
-              <label class="wide-label">Observações<textarea id="notes" rows="3" placeholder="Anotações livres"></textarea></label>
-            </div>
-          </section>
-
-          <section class="form-section">
-            <div class="section-number">05</div>
-            <div class="form-section-content">
               <div class="form-section-head">
                 <div><span class="panel-kicker">MEMÓRIA E CONEXÕES</span><h3>História e vínculos</h3></div>
-                <button type="button" class="secondary-btn" id="voiceFillBtn">Preencher por voz</button>
+                <button type="button" class="secondary-btn" id="recordMemoryAudioBtn">Gravar áudio</button>
               </div>
-              <p class="voice-status" id="voiceStatus" hidden role="status"></p>
-              <label class="field-wide">Texto livre da memória<textarea id="freeMemoryText" rows="3" placeholder="Transcrição ou rascunho falado sobre este item..."></textarea></label>
+              <p class="memory-audio-status" id="memoryAudioStatus" hidden role="status"></p>
+              <div id="memoryAudioList" class="memory-audio-list" aria-live="polite"></div>
               <label class="field-wide">História ou memória<textarea id="memory" rows="4" placeholder="Conte a história por trás deste objeto..."></textarea></label>
               <div class="form-grid">
                 <label>Pessoa relacionada<input id="relatedPerson" placeholder="Ex: meu avô, Maria..." /></label>
@@ -241,9 +224,21 @@
                 <label>Local de armazenamento<input id="storageLocation" placeholder="Ex: caixa azul, adega principal..." /></label>
                 <label>Data do acontecimento<input id="eventDate" type="date" /></label>
                 <label>País<input id="country" placeholder="Ex: Brasil, Argentina..." /></label>
-                <label>Valor facial<input id="faceValue" placeholder="Ex: R$ 1,00, 50 centavos..." /></label>
                 <label>Material<input id="material" placeholder="Ex: prata, papel, vinil..." /></label>
                 <label class="field-wide">Itens conectados<input id="connectedItems" placeholder="Nomes ou referências de itens relacionados, separados por vírgula" /></label>
+              </div>
+            </div>
+          </section>
+
+          <section class="form-section">
+            <div class="section-number">05</div>
+            <div class="form-section-content">
+              <div class="form-section-head"><div><span class="panel-kicker">AQUISIÇÃO E VALOR</span><h3>Histórico do item</h3></div></div>
+              <div class="form-grid">
+                <label>Valor pago<input id="paidValue" type="number" min="0" step="0.01" placeholder="0,00" /></label>
+                <label>Valor estimado atual<input id="estimatedValue" type="number" min="0" step="0.01" placeholder="0,00" /></label>
+                <label>Data de aquisição<input id="acquiredAt" type="date" /></label>
+                <label>Local de aquisição<input id="acquiredPlace" placeholder="Loja, feira, leilão..." /></label>
               </div>
             </div>
           </section>
