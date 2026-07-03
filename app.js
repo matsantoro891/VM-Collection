@@ -1766,14 +1766,36 @@ function clearForm() {
   renderMemoryAudioList();
 }
 
+const LEGACY_ITEM_FIELDS = ["subcategory", "condition", "serial", "notes", "freeMemoryText", "faceValue", "year"];
+
+function setAcquiredAtFormValue(value = "") {
+  const normalized = String(value || "");
+  if ($("acquiredAt")) $("acquiredAt").value = normalized;
+  if ($("acquiredAtPrimary")) $("acquiredAtPrimary").value = normalized;
+}
+
+function syncAcquiredAtFields(sourceId) {
+  const source = $(sourceId);
+  if (!source) return;
+  const targetId = sourceId === "acquiredAt" ? "acquiredAtPrimary" : "acquiredAt";
+  const target = $(targetId);
+  if (!target || target.value === source.value) return;
+  target.value = source.value;
+}
+
+function setupAcquiredAtSync() {
+  ["acquiredAt", "acquiredAtPrimary"].forEach((id) => {
+    $(id)?.addEventListener("input", () => syncAcquiredAtFields(id));
+    $(id)?.addEventListener("change", () => syncAcquiredAtFields(id));
+  });
+}
+
 const ITEM_FORM_TEXT_FIELDS = [
-  "name", "category", "brand", "year", "description", "tags",
+  "name", "category", "brand", "description", "tags",
   "memory", "relatedPerson", "relatedPlace", "relatedEvent", "storageLocation",
   "eventDate", "country", "material", "connectedItems",
   "paidValue", "estimatedValue", "acquiredAt", "acquiredPlace"
 ];
-
-const LEGACY_ITEM_FIELDS = ["subcategory", "condition", "serial", "notes", "freeMemoryText", "faceValue"];
 
 function readForm() {
   const existing = items.find((i) => i.id === $("editingId").value);
@@ -1806,7 +1828,11 @@ function readForm() {
 }
 
 function fillForm(item) {
-  ITEM_FORM_TEXT_FIELDS.forEach((id) => { if ($(id)) $(id).value = item[id] || ""; });
+  ITEM_FORM_TEXT_FIELDS.forEach((id) => {
+    if (id === "acquiredAt") return;
+    if ($(id)) $(id).value = item[id] || "";
+  });
+  setAcquiredAtFormValue(item.acquiredAt || "");
   $("editingId").value = item.id;
   $("favorite").checked = !!item.favorite; $("desired").checked = !!item.desired; $("rare").checked = !!item.rare;
   currentPhotos = itemPhotosFromRaw(item);
@@ -2653,6 +2679,7 @@ async function initializePersistentApp() {
   setupDeleteCategoryDialog();
   setupGlobalSearchDialog();
   setupMemoryAudioRecorder();
+  setupAcquiredAtSync();
   updateCategoryViewSwitcherUI();
 }
 

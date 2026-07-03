@@ -8,11 +8,11 @@
   <meta name="apple-mobile-web-app-title" content="VM Collection" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
   <title>VM Collection</title>
-  <meta name="vm-asset-version" content="202607031" />
+  <meta name="vm-asset-version" content="202607032" />
   <link rel="manifest" href="manifest.webmanifest" />
   <link rel="apple-touch-icon" href="assets/icon-180.png" />
   <link rel="icon" href="assets/icon-192.png" />
-  <link rel="stylesheet" href="styles.css?v=202607031" />
+  <link rel="stylesheet" href="styles.css?v=202607032" />
 </head>
 <body>
   <div id="appShell">
@@ -188,7 +188,12 @@
                 <label class="field-wide">Nome do item<input id="name" required placeholder="Ex: Porsche 911 GT3, moeda comemorativa..." /></label>
                 <label>Categoria<input id="category" list="categoryList" placeholder="Ex: Miniaturas, Relógios" /><datalist id="categoryList"></datalist></label>
                 <label>Marca/Produtor<input id="brand" placeholder="Ex: Mattel, Tag Heuer, Brasil" /></label>
-                <label>Data<input id="year" placeholder="Ex: 2023" /></label>
+                <label>Data de aquisição
+                  <div class="date-field-wrap">
+                    <input id="acquiredAtPrimary" type="date" aria-label="Data de aquisição" />
+                    <span class="date-field-icon" aria-hidden="true"></span>
+                  </div>
+                </label>
                 <label class="field-wide">Descrição<textarea id="description" rows="4" placeholder="Descreva detalhes, procedência e características importantes..."></textarea></label>
                 <label class="field-wide">Observação<textarea id="tags" rows="3" placeholder="Digite uma observação sobre o item"></textarea></label>
               </div>
@@ -237,7 +242,12 @@
               <div class="form-grid">
                 <label>Valor pago<input id="paidValue" type="number" min="0" step="0.01" placeholder="0,00" /></label>
                 <label>Valor estimado atual<input id="estimatedValue" type="number" min="0" step="0.01" placeholder="0,00" /></label>
-                <label>Data de aquisição<input id="acquiredAt" type="date" /></label>
+                <label>Data de aquisição
+                  <div class="date-field-wrap">
+                    <input id="acquiredAt" type="date" aria-label="Data de aquisição na seção de aquisição" />
+                    <span class="date-field-icon" aria-hidden="true"></span>
+                  </div>
+                </label>
                 <label>Local de aquisição<input id="acquiredPlace" placeholder="Loja, feira, leilão..." /></label>
               </div>
             </div>
