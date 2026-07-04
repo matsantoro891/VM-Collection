@@ -1,4 +1,9 @@
-const APP_DISPLAY_NAME = "VM Life Archive";
+const APP_DISPLAY_NAME = "VM Life ARCHIVE";
+const APP_BRAND_SUBLINE = "Life ARCHIVE";
+
+function renderPdfBrandTitleHtml() {
+  return `<div class="pdf-brand-title" aria-label="${APP_DISPLAY_NAME}"><span class="pdf-brand-vm">VM</span> <span class="pdf-brand-life">Life</span> <span class="pdf-brand-archive">ARCHIVE</span></div>`;
+}
 const STORAGE_KEY = "vmCollection.items.v3";
 const PROFILE_STORAGE_KEY = "vmCollection.profile.v1";
 const LEGACY_KEYS = ["vmCollection.items.v2", "vmCollection.items.v1"];
@@ -2199,11 +2204,9 @@ function buildCatalogPdfDocument(selectedItems, options = {}) {
   const sortLabel = "Adicionados recentemente";
   const coverTitle = mode === "category" ? (categoryName || title) : title;
   const coverMeta = mode === "category"
-    ? `Categoria: ${escapeHtml(categoryName || title)}<br>${selectedItems.length} item(ns)<br>Gerado em ${generatedAt}`
+    ? `${selectedItems.length} item(ns)<br>Gerado em ${generatedAt}`
     : `Termos: ${escapeHtml(termsLabel)}<br>Categoria: ${escapeHtml(filterCategoryLabel)}<br>Classificação: ${escapeHtml(classificationLabel)}<br>Período: ${escapeHtml(periodLabel)}<br>Ordem: ${escapeHtml(sortLabel)}<br>Gerado em ${generatedAt}`;
-  const coverCategoryBox = mode === "category"
-    ? escapeHtml(categoryName || title)
-    : `${selectedItems.length} item(ns)`;
+  const coverCategoryBox = `${selectedItems.length} item(ns)`;
 
   const rows = selectedItems.map((item, index) => {
     const image = item.photo
@@ -2238,7 +2241,9 @@ function buildCatalogPdfDocument(selectedItems, options = {}) {
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width,initial-scale=1">
-    <title>Catálogo ${APP_DISPLAY_NAME} - ${escapeHtml(coverTitle)}</title>
+    <meta name="author" content="${escapeHtml(APP_DISPLAY_NAME)}">
+    <meta name="application-name" content="${escapeHtml(APP_DISPLAY_NAME)}">
+    <title>${escapeHtml(APP_DISPLAY_NAME)} - ${escapeHtml(coverTitle)}</title>
     <style>
       @page{size:A4;margin:0}
       *{box-sizing:border-box}
@@ -2251,6 +2256,10 @@ function buildCatalogPdfDocument(selectedItems, options = {}) {
       .brand-title{font-family:Georgia,"Times New Roman",serif;line-height:.9;color:#07111f}
       .brand-title strong{display:block;font-size:27pt;letter-spacing:.02em}
       .brand-title span{display:block;font-size:17pt;letter-spacing:.05em;margin-top:3mm}
+      .pdf-brand-title{font-family:Arial,Helvetica,sans-serif;line-height:1.1;color:#07111f;font-weight:700}
+      .pdf-brand-vm{font-family:Georgia,"Times New Roman",serif;font-size:27pt;letter-spacing:.02em;display:block}
+      .pdf-brand-life{font-size:17pt;letter-spacing:.04em}
+      .pdf-brand-archive{font-size:17pt;letter-spacing:.14em}
       .gold-rule{display:flex;align-items:center;gap:4mm;margin-top:4mm}.gold-rule i{display:block;height:.6mm;width:24mm;background:#d7bd8c}.gold-rule b{width:3mm;height:3mm;background:#b4863e;transform:rotate(45deg)}
       .cover-main{flex:1;display:grid;place-items:center;position:relative;z-index:2}
       .cover-card{width:100%;background:linear-gradient(135deg,#07111f,#17263d);color:white;border-radius:12mm;padding:18mm 14mm;text-align:center;box-shadow:0 7mm 18mm rgba(7,17,31,.18)}
@@ -2288,7 +2297,7 @@ function buildCatalogPdfDocument(selectedItems, options = {}) {
     <section class="cover">
       <div class="cover-brand">
         <img class="cover-logo" src="${appLogo}" alt="Logo ${APP_DISPLAY_NAME}">
-        <div class="brand-title"><strong>VM</strong><span>Life Archive</span><div class="gold-rule"><i></i><b></b><i></i></div></div>
+        <div class="brand-title">${renderPdfBrandTitleHtml()}<div class="gold-rule"><i></i><b></b><i></i></div></div>
       </div>
       <div class="cover-main">
         <div class="cover-card">
@@ -2320,6 +2329,9 @@ function openCatalogPdfWindow(selectedItems, options = {}) {
     alert("Nenhum item encontrado para gerar o PDF.");
     return;
   }
+  const docTitle = options.mode === "category"
+    ? `${APP_DISPLAY_NAME} - ${options.categoryName || options.title || "Categoria"}`
+    : `${APP_DISPLAY_NAME} - Localizar itens`;
   const printWindow = window.open("", "_blank");
   if (!printWindow) {
     alert(`O navegador bloqueou a janela do PDF. Permita pop-ups para o ${APP_DISPLAY_NAME} e tente novamente.`);
@@ -2328,6 +2340,7 @@ function openCatalogPdfWindow(selectedItems, options = {}) {
   printWindow.document.open();
   printWindow.document.write(buildCatalogPdfDocument(selectedItems, options));
   printWindow.document.close();
+  printWindow.document.title = docTitle;
   printWindow.focus();
   const triggerPrint = () => setTimeout(() => printWindow.print(), 650);
   if (printWindow.document.readyState === "complete") triggerPrint();

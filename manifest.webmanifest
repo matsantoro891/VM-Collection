@@ -1,6 +1,6 @@
 {
-  "name": "VM Life Archive",
-  "short_name": "VM Life Archive",
+  "name": "VM Life ARCHIVE",
+  "short_name": "VM Life ARCHIVE",
   "description": "Arquivo pessoal premium para catálogos, memórias e coleções.",
   "start_url": "./index.html",
   "display": "standalone",
