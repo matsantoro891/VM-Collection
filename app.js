@@ -1,3 +1,4 @@
+const APP_DISPLAY_NAME = "VM Life Archive";
 const STORAGE_KEY = "vmCollection.items.v3";
 const PROFILE_STORAGE_KEY = "vmCollection.profile.v1";
 const LEGACY_KEYS = ["vmCollection.items.v2", "vmCollection.items.v1"];
@@ -1081,8 +1082,8 @@ function renderCategories() {
     const total = group.reduce((sum, i) => sum + Number(i.estimatedValue || 0), 0);
     const initials = cat.split(/\s+/).slice(0, 2).map((x) => x[0]).join("").toUpperCase();
     const media = category.image
-      ? `<div class="category-cover"><img src="${category.image}" alt="Capa da categoria ${escapeHtml(cat)}" onerror="this.hidden=true;this.nextElementSibling.hidden=false"><div class="category-cover-placeholder" hidden>${escapeHtml(initials || "VM")}</div></div>`
-      : `<div class="category-cover"><div class="category-cover-placeholder">${escapeHtml(initials || "VM")}</div></div>`;
+      ? `<button type="button" class="category-cover category-cover-open" onclick="openCategoryDetail('${category.id}')" aria-label="Abrir categoria ${escapeHtml(cat)}"><img src="${category.image}" alt="" onerror="this.hidden=true;this.nextElementSibling.hidden=false"><div class="category-cover-placeholder" hidden>${escapeHtml(initials || "VM")}</div></button>`
+      : `<button type="button" class="category-cover category-cover-open" onclick="openCategoryDetail('${category.id}')" aria-label="Abrir categoria ${escapeHtml(cat)}"><div class="category-cover-placeholder">${escapeHtml(initials || "VM")}</div></button>`;
     return `<article class="category-card">${media}<div class="category-card-content"><div class="category-title-row"><span class="category-symbol">${escapeHtml(initials || "VM")}</span><h4>${escapeHtml(cat)}</h4></div><div class="category-meta"><div><span>Quantidade</span><strong>${groupLength} item(ns)</strong></div><div><span>Valor estimado</span><strong>${money(total)}</strong></div></div><div class="category-card-actions"><button type="button" class="secondary-btn" onclick="openCategoryDetail('${category.id}')">Abrir</button><button type="button" class="primary-btn" onclick="addItemFromCategory('${category.id}')">Adicionar item</button><button type="button" class="text-action" onclick="openCategoryEditor('${category.id}')">Editar</button></div></div></article>`;
   }).join("") : emptyHtml();
 }
@@ -1159,6 +1160,9 @@ function populateCategoryDetailContent(categoryId) {
       closeCategoryDetailDialog();
       openCategoryEditor(categoryId);
     };
+  }
+  if ($("categoryDetailPdfBtn")) {
+    $("categoryDetailPdfBtn").onclick = () => generateCategoryPdf(categoryId);
   }
   return true;
 }
@@ -1766,7 +1770,14 @@ function clearForm() {
   renderMemoryAudioList();
 }
 
-const LEGACY_ITEM_FIELDS = ["subcategory", "condition", "serial", "notes", "freeMemoryText", "faceValue", "year"];
+const LEGACY_ITEM_FIELDS = ["subcategory", "condition", "serial", "notes", "freeMemoryText", "faceValue", "year", "country", "material"];
+
+const ITEM_FORM_TEXT_FIELDS = [
+  "name", "category", "brand", "description", "tags",
+  "memory", "relatedPerson", "relatedPlace", "relatedEvent", "storageLocation",
+  "eventDate", "connectedItems",
+  "paidValue", "estimatedValue", "acquiredAt", "acquiredPlace"
+];
 
 function setAcquiredAtFormValue(value = "") {
   const normalized = String(value || "");
@@ -1789,13 +1800,6 @@ function setupAcquiredAtSync() {
     $(id)?.addEventListener("change", () => syncAcquiredAtFields(id));
   });
 }
-
-const ITEM_FORM_TEXT_FIELDS = [
-  "name", "category", "brand", "description", "tags",
-  "memory", "relatedPerson", "relatedPlace", "relatedEvent", "storageLocation",
-  "eventDate", "country", "material", "connectedItems",
-  "paidValue", "estimatedValue", "acquiredAt", "acquiredPlace"
-];
 
 function readForm() {
   const existing = items.find((i) => i.id === $("editingId").value);
@@ -1865,10 +1869,26 @@ function formatItemDate(value) {
   return formatItemDateTime(value);
 }
 
+function hasPositiveMoney(value) {
+  const num = Number(value);
+  return Number.isFinite(num) && num > 0;
+}
+
 function detailTableRow(label, value) {
   const text = String(value ?? "").trim();
   if (!text) return "";
   return `<div><span>${escapeHtml(label)}</span>${escapeHtml(text)}</div>`;
+}
+
+function detailMoneyRow(label, value) {
+  if (!hasPositiveMoney(value)) return "";
+  return detailTableRow(label, money(value));
+}
+
+function detailDateRow(label, value) {
+  const text = formatItemDate(value);
+  if (!text) return "";
+  return detailTableRow(label, text);
 }
 
 function detailStatusChips(item) {
@@ -1902,18 +1922,16 @@ function buildDetailHtml(item, { categoryMode = false } = {}) {
     : "";
   const tableRows = [
     detailTableRow("Subcategoria", item.subcategory),
-    detailTableRow("Marca / origem", item.brand),
+    detailTableRow("Marca/Produtor", item.brand),
     detailTableRow("Modelo", item.model),
     detailTableRow("Escala", item.scale),
     detailTableRow("Ano", item.year),
     detailTableRow("Estado de conservação", item.condition),
-    detailTableRow("Valor pago", money(item.paidValue)),
-    detailTableRow("Valor estimado", money(item.estimatedValue)),
+    detailMoneyRow("Valor pago", item.paidValue),
+    detailMoneyRow("Valor estimado", item.estimatedValue),
     detailTableRow("Valor facial", item.faceValue),
-    detailTableRow("Material", item.material),
-    detailTableRow("País", item.country),
-    detailTableRow("Data de aquisição", formatItemDate(item.acquiredAt)),
-    detailTableRow("Data do acontecimento", formatItemDate(item.eventDate)),
+    detailDateRow("Data de aquisição", item.acquiredAt),
+    detailDateRow("Data do acontecimento", item.eventDate),
     detailTableRow("Local de aquisição", item.acquiredPlace),
     detailTableRow("Local de armazenamento", item.storageLocation),
     detailTableRow("Série / código", item.serial),
@@ -2106,7 +2124,7 @@ function setupDeleteItemDialog() {
 }
 function shareItem(id) {
   const item = items.find((i) => i.id === id); if (!item) return;
-  const text = `VM Collection\n${item.name}\nCategoria: ${item.category || "—"}\nValor estimado: ${money(item.estimatedValue)}`;
+  const text = `${APP_DISPLAY_NAME}\n${item.name}\nCategoria: ${item.category || "—"}\nValor estimado: ${money(item.estimatedValue)}`;
   if (navigator.share) navigator.share({ title: item.name, text }).catch(() => {}); else { navigator.clipboard?.writeText(text); alert("Resumo copiado para a área de transferência."); }
 }
 function printItem(id) {
@@ -2124,7 +2142,43 @@ function formatDisplayDate(dateStr) {
   return new Date(parts[0], parts[1] - 1, parts[2]).toLocaleDateString("pt-BR");
 }
 
-function buildCatalogPdfDocument(selectedItems) {
+function buildPdfItemDetailLines(item) {
+  const lines = [];
+  const pushText = (label, value) => {
+    const text = String(value ?? "").trim();
+    if (!text) return;
+    lines.push(`<p class="pdf-detail-line"><strong>${escapeHtml(label)}:</strong> ${escapeHtml(text)}</p>`);
+  };
+  pushText("Marca/Produtor", item.brand);
+  if (item.acquiredAt) pushText("Data de aquisição", formatItemDate(item.acquiredAt));
+  pushText("Descrição", item.description);
+  pushText("Local de armazenamento", item.storageLocation);
+  pushText("Local de aquisição", item.acquiredPlace);
+  pushText("História", item.memory);
+  pushText("Pessoa relacionada", item.relatedPerson);
+  pushText("Local relacionado", item.relatedPlace);
+  pushText("Evento relacionado", item.relatedEvent);
+  if (hasPositiveMoney(item.estimatedValue)) pushText("Valor estimado", money(item.estimatedValue));
+  if (hasPositiveMoney(item.paidValue)) pushText("Valor pago", money(item.paidValue));
+  if (item.memoryAudios?.length) {
+    lines.push(`<p class="pdf-detail-line"><strong>Memórias em áudio:</strong> ${item.memoryAudios.length} gravação(ões)</p>`);
+  }
+  if (item.attachments?.length) {
+    lines.push(`<p class="pdf-detail-line"><strong>Anexos:</strong> ${item.attachments.length} arquivo(s)</p>`);
+  }
+  return lines.join("");
+}
+
+function buildCatalogPdfDocument(selectedItems, options = {}) {
+  const {
+    mode = "catalog",
+    title = "Localizar itens",
+    listSubtitle = "Catálogo em formato de lista",
+    coverKicker = "Catálogo personalizado",
+    categoryName = "",
+    categoryImage = "",
+    showFilters = true
+  } = options;
   const personName = profile.name || "Seu nome";
   const profilePhoto = profile.photo || document.querySelector(".brand-logo")?.src || "";
   const appLogo = document.querySelector(".brand-logo")?.src || "";
@@ -2138,42 +2192,53 @@ function buildCatalogPdfDocument(selectedItems) {
     rare: "Raros"
   };
   const classificationLabel = classificationLabels[catalogAppliedFilters.classification] || "Todos";
-  const categoryLabel = getCategoryNameById(catalogAppliedFilters.categoryId) || "Todas";
+  const filterCategoryLabel = getCategoryNameById(catalogAppliedFilters.categoryId) || "Todas";
   const periodLabel = catalogAppliedFilters.dateFrom || catalogAppliedFilters.dateTo
     ? `${catalogAppliedFilters.dateFrom ? formatDisplayDate(catalogAppliedFilters.dateFrom) : "—"} até ${catalogAppliedFilters.dateTo ? formatDisplayDate(catalogAppliedFilters.dateTo) : "—"}`
     : "Todo o período";
   const sortLabel = "Adicionados recentemente";
+  const coverTitle = mode === "category" ? (categoryName || title) : title;
+  const coverMeta = mode === "category"
+    ? `Categoria: ${escapeHtml(categoryName || title)}<br>${selectedItems.length} item(ns)<br>Gerado em ${generatedAt}`
+    : `Termos: ${escapeHtml(termsLabel)}<br>Categoria: ${escapeHtml(filterCategoryLabel)}<br>Classificação: ${escapeHtml(classificationLabel)}<br>Período: ${escapeHtml(periodLabel)}<br>Ordem: ${escapeHtml(sortLabel)}<br>Gerado em ${generatedAt}`;
+  const coverCategoryBox = mode === "category"
+    ? escapeHtml(categoryName || title)
+    : `${selectedItems.length} item(ns)`;
 
   const rows = selectedItems.map((item, index) => {
     const image = item.photo
       ? `<img src="${item.photo}" alt="${escapeHtml(item.name)}">`
       : `<div class="item-no-image">VM</div>`;
     const markers = [item.favorite ? "Favorito" : "", item.desired ? "Desejado" : "Possuído", item.rare ? "Raro" : ""].filter(Boolean).join(" • ");
-    const primaryMeta = [item.category, item.year].filter(Boolean).map(escapeHtml).join(" • ") || "Sem categoria";
-    const secondaryMeta = item.brand ? escapeHtml(item.brand) : "";
+    const primaryMeta = [item.category, item.acquiredAt ? formatItemDate(item.acquiredAt) : item.year].filter(Boolean).map(escapeHtml).join(" • ") || "Sem categoria";
+    const detailLines = buildPdfItemDetailLines(item);
+    const valueHtml = hasPositiveMoney(item.estimatedValue)
+      ? `<div class="row-value"><span>Valor estimado</span><strong>${money(item.estimatedValue)}</strong></div>`
+      : "";
     return `
-      <article class="catalog-row">
+      <article class="catalog-row${valueHtml ? "" : " catalog-row-no-value"}">
         <div class="row-number">${String(index + 1).padStart(2, "0")}</div>
         <div class="row-photo">${image}</div>
         <div class="row-content">
           <h3>${escapeHtml(item.name || "Item sem nome")}</h3>
           <p class="primary-meta">${primaryMeta}</p>
-          ${secondaryMeta ? `<p class="secondary-meta">${secondaryMeta}</p>` : ""}
           ${markers ? `<p class="markers">${escapeHtml(markers)}</p>` : ""}
+          ${detailLines ? `<div class="pdf-detail-block">${detailLines}</div>` : ""}
         </div>
-        <div class="row-value">
-          <span>Valor estimado</span>
-          <strong>${money(item.estimatedValue)}</strong>
-        </div>
+        ${valueHtml}
       </article>`;
   }).join("");
+
+  const categoryCoverHtml = mode === "category" && categoryImage
+    ? `<div class="cover-category-image"><img src="${categoryImage}" alt="Capa de ${escapeHtml(categoryName)}"></div>`
+    : "";
 
   return `<!doctype html>
   <html lang="pt-BR">
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width,initial-scale=1">
-    <title>Catálogo VM Collection - Localizar itens</title>
+    <title>Catálogo ${APP_DISPLAY_NAME} - ${escapeHtml(coverTitle)}</title>
     <style>
       @page{size:A4;margin:0}
       *{box-sizing:border-box}
@@ -2191,10 +2256,12 @@ function buildCatalogPdfDocument(selectedItems) {
       .cover-card{width:100%;background:linear-gradient(135deg,#07111f,#17263d);color:white;border-radius:12mm;padding:18mm 14mm;text-align:center;box-shadow:0 7mm 18mm rgba(7,17,31,.18)}
       .cover-profile{width:42mm;height:42mm;border-radius:50%;padding:1.6mm;margin:0 auto 7mm;background:linear-gradient(135deg,#e6d4b3,#b4863e)}
       .cover-profile img{width:100%;height:100%;object-fit:cover;border-radius:50%;border:1.8mm solid #07111f;background:#fff}
+      .cover-category-image{width:52mm;height:36mm;border-radius:6mm;overflow:hidden;margin:0 auto 6mm;border:1px solid rgba(208,165,95,.45)}
+      .cover-category-image img{width:100%;height:100%;object-fit:cover;display:block}
       .cover-kicker{color:#d0a55f;font-size:9pt;font-weight:700;letter-spacing:.18em;text-transform:uppercase}
       .cover-card h1{font-family:Georgia,"Times New Roman",serif;font-size:31pt;margin:5mm 0 3mm;line-height:1.05}
       .cover-person{font-size:15pt;font-weight:700;margin:0 0 8mm}
-      .category-box{display:inline-block;border:1px solid rgba(208,165,95,.75);border-radius:999px;padding:3mm 8mm;color:#f5e7cd;font-size:11pt;font-weight:700}
+      .category-box{display:inline-block;border:1px solid rgba(208,165,95,.75);border-radius:999px;padding:3mm 8mm;color:#f5e7cd;font-size:11pt;font-weight:700;max-width:100%}
       .cover-meta{margin-top:8mm;color:#d4d9e2;font-size:9pt;line-height:1.8}
       .cover-footer{text-align:center;position:relative;z-index:2;color:#8a7a64;font-family:Georgia,"Times New Roman",serif;font-size:9pt;letter-spacing:.08em}
       .catalog-pages{padding:15mm 14mm 16mm;background:#fff}
@@ -2204,12 +2271,14 @@ function buildCatalogPdfDocument(selectedItems) {
       .list-header h2{font-family:Georgia,"Times New Roman",serif;margin:0;font-size:20pt;color:#07111f}
       .list-header p{margin:1.5mm 0 0;color:#6d7280;font-size:9pt}
       .list-count{text-align:right}.list-count span{display:block;color:#6d7280;font-size:8pt}.list-count strong{display:block;font-size:15pt;color:#07111f;margin-top:1mm}
-      .catalog-row{display:grid;grid-template-columns:10mm 34mm 1fr 37mm;gap:5mm;align-items:center;border:1px solid #e7dece;border-radius:5mm;padding:4mm;margin-bottom:4mm;break-inside:avoid;page-break-inside:avoid;background:#fffdfa}
+      .catalog-row{display:grid;grid-template-columns:10mm 34mm 1fr 37mm;gap:5mm;align-items:start;border:1px solid #e7dece;border-radius:5mm;padding:4mm;margin-bottom:4mm;break-inside:avoid;page-break-inside:avoid;background:#fffdfa}
+      .catalog-row-no-value{grid-template-columns:10mm 34mm 1fr}
       .row-number{font-family:Georgia,"Times New Roman",serif;color:#b4863e;font-size:10pt;font-weight:700;text-align:center}
       .row-photo{width:34mm;height:25mm;border-radius:3.5mm;overflow:hidden;background:#eee6da;display:grid;place-items:center}
       .row-photo img{width:100%;height:100%;object-fit:cover}.item-no-image{font-family:Georgia,"Times New Roman",serif;color:#85622c;font-weight:700}
       .row-content h3{font-family:Georgia,"Times New Roman",serif;margin:0 0 1.5mm;font-size:13pt;color:#07111f}
-      .row-content p{margin:0}.primary-meta{font-size:9pt;color:#3d4450}.secondary-meta{font-size:8.5pt;color:#6d7280;margin-top:1.2mm!important}.markers{font-size:7.5pt;color:#8a642b;margin-top:1.8mm!important;font-weight:700}
+      .row-content p{margin:0}.primary-meta{font-size:9pt;color:#3d4450}.markers{font-size:7.5pt;color:#8a642b;margin-top:1.8mm!important;font-weight:700}
+      .pdf-detail-block{margin-top:2mm}.pdf-detail-line{margin:0 0 1mm;font-size:8pt;color:#4d5563;line-height:1.45}
       .row-value{text-align:right}.row-value span{display:block;color:#6d7280;font-size:7.5pt}.row-value strong{display:block;color:#07111f;font-size:10.5pt;margin-top:1mm}
       .list-footer{margin-top:7mm;padding-top:4mm;border-top:1px solid #e7dece;text-align:center;color:#9a8c78;font-size:8pt}
       @media print{body{-webkit-print-color-adjust:exact;print-color-adjust:exact}.cover,.cover-card,.catalog-row{break-inside:avoid}}
@@ -2218,31 +2287,51 @@ function buildCatalogPdfDocument(selectedItems) {
   <body>
     <section class="cover">
       <div class="cover-brand">
-        <img class="cover-logo" src="${appLogo}" alt="Logo VM Collection">
-        <div class="brand-title"><strong>VM</strong><span>COLLECTION</span><div class="gold-rule"><i></i><b></b><i></i></div></div>
+        <img class="cover-logo" src="${appLogo}" alt="Logo ${APP_DISPLAY_NAME}">
+        <div class="brand-title"><strong>VM</strong><span>Life Archive</span><div class="gold-rule"><i></i><b></b><i></i></div></div>
       </div>
       <div class="cover-main">
         <div class="cover-card">
           <div class="cover-profile"><img src="${profilePhoto}" alt="Foto de ${escapeHtml(personName)}"></div>
-          <div class="cover-kicker">Catálogo personalizado</div>
-          <h1>Localizar itens</h1>
+          ${categoryCoverHtml}
+          <div class="cover-kicker">${escapeHtml(coverKicker)}</div>
+          <h1>${escapeHtml(coverTitle)}</h1>
           <p class="cover-person">${escapeHtml(personName)}</p>
-          <div class="category-box">${selectedItems.length} item(ns)</div>
-          <div class="cover-meta">Termos: ${escapeHtml(termsLabel)}<br>Categoria: ${escapeHtml(categoryLabel)}<br>Classificação: ${escapeHtml(classificationLabel)}<br>Período: ${escapeHtml(periodLabel)}<br>Ordem: ${escapeHtml(sortLabel)}<br>Gerado em ${generatedAt}</div>
+          <div class="category-box">${coverCategoryBox}</div>
+          <div class="cover-meta">${coverMeta}</div>
         </div>
       </div>
-      <div class="cover-footer">VM Collection - Seu acervo digital</div>
+      <div class="cover-footer">${APP_DISPLAY_NAME} - Seu acervo digital</div>
     </section>
     <main class="catalog-pages">
       <header class="list-header">
-        <div class="list-header-left"><img src="${appLogo}" alt="Logo"><div><h2>Localizar itens</h2><p>${escapeHtml(personName)} - Catálogo em formato de lista</p></div></div>
+        <div class="list-header-left"><img src="${appLogo}" alt="Logo"><div><h2>${escapeHtml(coverTitle)}</h2><p>${escapeHtml(personName)} - ${escapeHtml(listSubtitle)}</p></div></div>
         <div class="list-count"><span>Total da seleção</span><strong>${selectedItems.length}</strong></div>
       </header>
       ${rows}
-      <div class="list-footer">VM Collection - ${escapeHtml(personName)} - ${generatedAt}</div>
+      <div class="list-footer">${APP_DISPLAY_NAME} - ${escapeHtml(personName)} - ${generatedAt}</div>
     </main>
   </body>
   </html>`;
+}
+
+function openCatalogPdfWindow(selectedItems, options = {}) {
+  if (!selectedItems.length) {
+    alert("Nenhum item encontrado para gerar o PDF.");
+    return;
+  }
+  const printWindow = window.open("", "_blank");
+  if (!printWindow) {
+    alert(`O navegador bloqueou a janela do PDF. Permita pop-ups para o ${APP_DISPLAY_NAME} e tente novamente.`);
+    return;
+  }
+  printWindow.document.open();
+  printWindow.document.write(buildCatalogPdfDocument(selectedItems, options));
+  printWindow.document.close();
+  printWindow.focus();
+  const triggerPrint = () => setTimeout(() => printWindow.print(), 650);
+  if (printWindow.document.readyState === "complete") triggerPrint();
+  else printWindow.addEventListener("load", triggerPrint, { once: true });
 }
 
 function generateCatalogPdf() {
@@ -2250,23 +2339,32 @@ function generateCatalogPdf() {
     alert("Toque em Pesquisar antes de gerar o catálogo em PDF.");
     return;
   }
-  const selectedItems = getCatalogSelection();
+  openCatalogPdfWindow(getCatalogSelection(), { mode: "catalog" });
+}
+
+function generateCategoryPdf(categoryId) {
+  const category = categories.find((entry) => entry.id === categoryId);
+  if (!category) {
+    alert("Esta categoria não foi encontrada.");
+    return;
+  }
+  const selectedItems = sortCatalogItems(
+    items.filter((item) => itemBelongsToCategory(item, categoryId)),
+    "newest"
+  );
   if (!selectedItems.length) {
-    alert("Nenhum item encontrado para os critérios selecionados.");
+    alert("Nenhum item nesta categoria para gerar PDF.");
     return;
   }
-  const printWindow = window.open("", "_blank");
-  if (!printWindow) {
-    alert("O navegador bloqueou a janela do PDF. Permita pop-ups para o VM Collection e tente novamente.");
-    return;
-  }
-  printWindow.document.open();
-  printWindow.document.write(buildCatalogPdfDocument(selectedItems));
-  printWindow.document.close();
-  printWindow.focus();
-  const triggerPrint = () => setTimeout(() => printWindow.print(), 650);
-  if (printWindow.document.readyState === "complete") triggerPrint();
-  else printWindow.addEventListener("load", triggerPrint, { once: true });
+  openCatalogPdfWindow(selectedItems, {
+    mode: "category",
+    title: category.name,
+    listSubtitle: `Catálogo da categoria ${category.name}`,
+    coverKicker: "Catálogo da categoria",
+    categoryName: category.name,
+    categoryImage: category.image || "",
+    showFilters: false
+  });
 }
 
 function clearFilters() {
@@ -2372,7 +2470,7 @@ function updateBackupStatus(message, isError = false) {
 
 function buildCompleteBackup() {
   return {
-    app: "VM Collection",
+    app: APP_DISPLAY_NAME,
     version: 5,
     storage: "IndexedDB + DataURL",
     exportedAt: new Date().toISOString(),
@@ -2392,7 +2490,7 @@ async function exportBackupNative() {
 
     if (navigator.share && navigator.canShare?.({ files: [file] })) {
       await navigator.share({
-        title: "Backup completo do VM Collection",
+        title: `Backup completo do ${APP_DISPLAY_NAME}`,
         text: "Backup com perfil, categorias, itens, imagens, vídeos, áudios e arquivos anexados.",
         files: [file]
       });
@@ -2509,7 +2607,7 @@ async function initializePersistentApp() {
   } catch (error) {
     console.error(error);
     updateBackupStatus("Falha ao abrir o armazenamento persistente.", true);
-    alert("Não foi possível abrir o armazenamento persistente do VM Collection.");
+    alert(`Não foi possível abrir o armazenamento persistente do ${APP_DISPLAY_NAME}.`);
   }
 
   renderAll();
@@ -2665,7 +2763,7 @@ async function initializePersistentApp() {
     } catch (error) {
       console.error(error);
       updateBackupStatus("Arquivo de backup inválido ou corrompido.", true);
-      alert("Não foi possível importar este backup. Verifique se o arquivo foi gerado pelo VM Collection.");
+      alert(`Não foi possível importar este backup. Verifique se o arquivo foi gerado pelo ${APP_DISPLAY_NAME}.`);
     } finally {
       e.target.value = "";
     }

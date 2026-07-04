@@ -5,23 +5,23 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
   <meta name="theme-color" content="#0b1323" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
-  <meta name="apple-mobile-web-app-title" content="VM Collection" />
+  <meta name="apple-mobile-web-app-title" content="VM Life Archive" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-  <title>VM Collection</title>
-  <meta name="vm-asset-version" content="202607032" />
+  <title>VM Life Archive</title>
+  <meta name="vm-asset-version" content="202607041" />
   <link rel="manifest" href="manifest.webmanifest" />
   <link rel="apple-touch-icon" href="assets/icon-180.png" />
   <link rel="icon" href="assets/icon-192.png" />
-  <link rel="stylesheet" href="styles.css?v=202607032" />
+  <link rel="stylesheet" href="styles.css?v=202607041" />
 </head>
 <body>
   <div id="appShell">
     <header class="topbar">
       <button class="brand-wrap" type="button" data-go="homeView" aria-label="Ir para o início">
-        <img src="assets/icon-192.png" alt="Logo VM Collection" class="brand-logo" />
+        <img src="assets/icon-192.png" alt="Logo VM Life Archive" class="brand-logo" />
         <div class="brand-text">
           <div class="brand-vm">VM</div>
-          <div class="brand-collection">COLLECTION</div>
+          <div class="brand-collection">Life Archive</div>
           <div class="brand-line"><span></span><i></i><span></span></div>
         </div>
       </button>
@@ -183,7 +183,7 @@
           <section class="form-section form-identification-section">
             <div class="section-number">02</div>
             <div class="form-section-content">
-              <div class="form-section-head"><div><span class="panel-kicker form-kicker-compact">INFORMAÇÕES PRINCIPAIS</span><h3>Informações principais</h3></div></div>
+              <div class="form-section-head"><div><span class="panel-kicker form-kicker-compact">DADOS DO ITEM</span><h3>Informações principais</h3></div></div>
               <div class="form-grid">
                 <label class="field-wide">Nome do item<input id="name" required placeholder="Ex: Porsche 911 GT3, moeda comemorativa..." /></label>
                 <label>Categoria<input id="category" list="categoryList" placeholder="Ex: Miniaturas, Relógios" /><datalist id="categoryList"></datalist></label>
@@ -228,8 +228,6 @@
                 <label>Evento relacionado<input id="relatedEvent" placeholder="Ex: formatura, viagem de 2010..." /></label>
                 <label>Local de armazenamento<input id="storageLocation" placeholder="Ex: caixa azul, adega principal..." /></label>
                 <label>Data do acontecimento<input id="eventDate" type="date" /></label>
-                <label>País<input id="country" placeholder="Ex: Brasil, Argentina..." /></label>
-                <label>Material<input id="material" placeholder="Ex: prata, papel, vinil..." /></label>
                 <label class="field-wide">Itens conectados<input id="connectedItems" placeholder="Nomes ou referências de itens relacionados, separados por vírgula" /></label>
               </div>
             </div>
@@ -238,7 +236,7 @@
           <section class="form-section">
             <div class="section-number">05</div>
             <div class="form-section-content">
-              <div class="form-section-head"><div><span class="panel-kicker">AQUISIÇÃO E VALOR</span><h3>Histórico do item</h3></div></div>
+              <div class="form-section-head"><div><span class="panel-kicker">AQUISIÇÃO</span><h3>Valor</h3></div></div>
               <div class="form-grid">
                 <label>Valor pago<input id="paidValue" type="number" min="0" step="0.01" placeholder="0,00" /></label>
                 <label>Valor estimado atual<input id="estimatedValue" type="number" min="0" step="0.01" placeholder="0,00" /></label>
@@ -469,6 +467,7 @@
         </div>
         <div class="category-detail-actions">
           <button id="categoryDetailAddBtn" class="primary-btn" type="button">Adicionar item</button>
+          <button id="categoryDetailPdfBtn" class="secondary-btn" type="button">Gerar PDF da categoria</button>
           <button id="categoryDetailEditBtn" class="secondary-btn" type="button">Editar categoria</button>
         </div>
         <div class="category-view-switcher" id="categoryViewSwitcher" role="tablist" aria-label="Modo de visualização">
@@ -562,6 +561,6 @@
 
   <template id="emptyTemplate"><div class="empty"><span class="empty-symbol">◇</span><strong>Nenhum item por aqui ainda.</strong><p>Use “Adicionar item” para começar sua coleção.</p></div></template>
   <script src="storage.js?v=202606208"></script>
-  <script src="app.js?v=202606208"></script>
+  <script src="app.js?v=202607041"></script>
 </body>
 </html>

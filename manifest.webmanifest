@@ -1,7 +1,7 @@
 {
-  "name": "VM Collection",
-  "short_name": "VM Collection",
-  "description": "Catálogo digital premium para colecionadores.",
+  "name": "VM Life Archive",
+  "short_name": "VM Life Archive",
+  "description": "Arquivo pessoal premium para catálogos, memórias e coleções.",
   "start_url": "./index.html",
   "display": "standalone",
   "background_color": "#f4f0e8",
