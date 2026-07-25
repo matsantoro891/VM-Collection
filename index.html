@@ -8,11 +8,11 @@
   <meta name="apple-mobile-web-app-title" content="VM Life ARCHIVE" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
   <title>VM Life ARCHIVE</title>
-  <meta name="vm-asset-version" content="202607042" />
+  <meta name="vm-asset-version" content="202607251" />
   <link rel="manifest" href="manifest.webmanifest" />
   <link rel="apple-touch-icon" href="assets/icon-180.png" />
   <link rel="icon" href="assets/icon-192.png" />
-  <link rel="stylesheet" href="styles.css?v=202607042" />
+  <link rel="stylesheet" href="styles.css?v=202607251" />
 </head>
 <body>
   <div id="appShell">
@@ -38,14 +38,13 @@
       <section id="homeView" class="view active">
         <div class="home-welcome">
           <p class="home-greeting" id="homeGreeting">Bom dia</p>
-          <h2 class="home-lead">O que faz parte da sua vida?</h2>
-          <button type="button" class="home-global-search" id="openGlobalSearchBtn" aria-label="Pesquisar em tudo">
+          <button type="button" class="home-global-search" id="openGlobalSearchBtn" aria-label="Pesquisar">
             <span class="home-global-search-icon" aria-hidden="true">⌕</span>
-            <span>Pesquisar em tudo</span>
+            <span>Pesquisar</span>
           </button>
           <button class="home-add-btn" data-go="addView" type="button">
             <span class="home-add-plus" aria-hidden="true">+</span>
-            <span>Adicionar algo</span>
+            <span>Adicionar</span>
           </button>
         </div>
 
@@ -84,7 +83,7 @@
               Termos
               <div class="catalog-search-wrap">
                 <span class="search-symbol">⌕</span>
-                <input id="catalogTermsInput" type="search" placeholder="Digite um nome, observação ou outro termo" aria-label="Termos de pesquisa" autocomplete="off" />
+                <input id="catalogTermsInput" type="search" placeholder="Pesquisar" aria-label="Pesquisar" autocomplete="off" />
               </div>
             </label>
             <label class="catalog-filter-field">
@@ -185,17 +184,17 @@
             <div class="form-section-content">
               <div class="form-section-head"><div><span class="panel-kicker form-kicker-compact">DADOS DO ITEM</span><h3>Informações principais</h3></div></div>
               <div class="form-grid">
-                <label class="field-wide">Nome do item<input id="name" required placeholder="Ex: Porsche 911 GT3, moeda comemorativa..." /></label>
-                <label>Categoria<input id="category" list="categoryList" placeholder="Ex: Miniaturas, Relógios" /><datalist id="categoryList"></datalist></label>
-                <label>Marca/Produtor<input id="brand" placeholder="Ex: Mattel, Tag Heuer, Brasil" /></label>
+                <label class="field-wide">Nome do item<input id="name" required /></label>
+                <label>Categoria<input id="category" list="categoryList" /><datalist id="categoryList"></datalist></label>
+                <label>Marca/Produtor<input id="brand" /></label>
                 <label>Data de aquisição
                   <div class="date-field-wrap">
                     <input id="acquiredAtPrimary" type="date" aria-label="Data de aquisição" />
                     <span class="date-field-icon" aria-hidden="true"></span>
                   </div>
                 </label>
-                <label class="field-wide">Descrição<textarea id="description" rows="4" placeholder="Descreva detalhes, procedência e características importantes..."></textarea></label>
-                <label class="field-wide">Observação<textarea id="tags" rows="3" placeholder="Digite uma observação sobre o item"></textarea></label>
+                <label class="field-wide">Descrição<textarea id="description" rows="4"></textarea></label>
+                <label class="field-wide">Observação<textarea id="tags" rows="3"></textarea></label>
               </div>
             </div>
           </section>
@@ -212,23 +211,24 @@
             </div>
           </section>
 
-          <section class="form-section">
+          <section class="form-section memory-section">
             <div class="section-number">04</div>
             <div class="form-section-content">
               <div class="form-section-head">
-                <div><span class="panel-kicker">MEMÓRIA E CONEXÕES</span><h3>História e vínculos</h3></div>
-                <button type="button" class="secondary-btn" id="recordMemoryAudioBtn">Gravar áudio</button>
+                <div><span class="panel-kicker">MEMÓRIA</span><h3>História</h3></div>
               </div>
+              <button type="button" class="secondary-btn memory-record-btn" id="recordMemoryAudioBtn">Gravar áudio</button>
               <p class="memory-audio-status" id="memoryAudioStatus" hidden role="status"></p>
               <div id="memoryAudioList" class="memory-audio-list" aria-live="polite"></div>
-              <label class="field-wide">História ou memória<textarea id="memory" rows="4" placeholder="Conte a história por trás deste objeto..."></textarea></label>
-              <div class="form-grid">
-                <label>Pessoa relacionada<input id="relatedPerson" placeholder="Ex: meu avô, Maria..." /></label>
-                <label>Local relacionado<input id="relatedPlace" placeholder="Ex: casa da praia, Paris..." /></label>
-                <label>Evento relacionado<input id="relatedEvent" placeholder="Ex: formatura, viagem de 2010..." /></label>
-                <label>Local de armazenamento<input id="storageLocation" placeholder="Ex: caixa azul, adega principal..." /></label>
-                <label>Data do acontecimento<input id="eventDate" type="date" /></label>
-                <label class="field-wide">Itens conectados<input id="connectedItems" placeholder="Nomes ou referências de itens relacionados, separados por vírgula" /></label>
+              <label class="field-wide">História ou memória<textarea id="memory" rows="4"></textarea></label>
+              <!-- Campos legados ocultos: preservam dados antigos em edição/backup/PDF -->
+              <div class="legacy-memory-fields" hidden aria-hidden="true">
+                <input id="relatedPerson" type="hidden" />
+                <input id="relatedPlace" type="hidden" />
+                <input id="relatedEvent" type="hidden" />
+                <input id="storageLocation" type="hidden" />
+                <input id="eventDate" type="hidden" />
+                <input id="connectedItems" type="hidden" />
               </div>
             </div>
           </section>
@@ -238,15 +238,15 @@
             <div class="form-section-content">
               <div class="form-section-head"><div><span class="panel-kicker">AQUISIÇÃO</span><h3>Valor</h3></div></div>
               <div class="form-grid">
-                <label>Valor pago<input id="paidValue" type="number" min="0" step="0.01" placeholder="0,00" /></label>
-                <label>Valor estimado atual<input id="estimatedValue" type="number" min="0" step="0.01" placeholder="0,00" /></label>
+                <label>Valor pago<input id="paidValue" type="number" min="0" step="0.01" /></label>
+                <label>Valor estimado atual<input id="estimatedValue" type="number" min="0" step="0.01" /></label>
                 <label>Data de aquisição
                   <div class="date-field-wrap">
                     <input id="acquiredAt" type="date" aria-label="Data de aquisição na seção de aquisição" />
                     <span class="date-field-icon" aria-hidden="true"></span>
                   </div>
                 </label>
-                <label>Local de aquisição<input id="acquiredPlace" placeholder="Loja, feira, leilão..." /></label>
+                <label>Local de aquisição<input id="acquiredPlace" /></label>
               </div>
             </div>
           </section>
@@ -344,13 +344,13 @@
             </div>
             <div class="profile-fields">
               <label>Nome
-                <input id="profileName" type="text" autocomplete="name" placeholder="Digite seu nome" />
+                <input id="profileName" type="text" autocomplete="name" />
               </label>
               <label>Data de nascimento
                 <input id="profileBirthDate" type="date" />
               </label>
               <label class="profile-bio-field">Bio / descrição
-                <textarea id="profileBio" rows="4" maxlength="500" placeholder="Escreva uma breve descrição sobre você e suas coleções."></textarea>
+                <textarea id="profileBio" rows="4" maxlength="500"></textarea>
               </label>
               <div class="profile-save-row">
                 <button class="primary-btn" type="submit">Salvar perfil</button>
@@ -392,7 +392,7 @@
         <button id="closeCategoryDialogBtn" class="ghost-btn" type="button">Fechar</button>
       </div>
       <input id="categoryEditingId" type="hidden" />
-      <label class="field-wide">Nome da categoria<input id="categoryNameInput" required placeholder="Ex: Miniaturas, Relógios..." /></label>
+      <label class="field-wide">Nome da categoria<input id="categoryNameInput" required /></label>
       <div class="category-editor-grid">
         <div>
           <div id="categoryImagePreview" class="category-image-preview"><span>Sem capa</span></div>
@@ -420,12 +420,12 @@
     </form>
   </dialog>
 
-  <dialog id="globalSearchDialog" class="global-search-dialog" aria-label="Pesquisar em tudo">
+  <dialog id="globalSearchDialog" class="global-search-dialog" aria-label="Pesquisar">
     <div class="global-search-shell">
       <header class="global-search-header">
         <div class="global-search-input-wrap">
           <span class="search-symbol" aria-hidden="true">⌕</span>
-          <input id="globalSearchInput" type="search" placeholder="Nome, história, pessoa, local..." aria-label="Pesquisar em tudo" autocomplete="off" />
+          <input id="globalSearchInput" type="search" placeholder="Pesquisar" aria-label="Pesquisar" autocomplete="off" />
         </div>
         <button type="button" class="ghost-btn" id="closeGlobalSearchBtn">Fechar</button>
       </header>
@@ -463,7 +463,7 @@
         <div id="categoryDetailCover" class="category-detail-cover"></div>
         <div class="category-detail-summary">
           <article class="info-mini"><span>Itens</span><strong id="categoryDetailCount">0</strong></article>
-          <article class="info-mini"><span>Valor estimado</span><strong id="categoryDetailValue">R$ 0</strong></article>
+          <article class="info-mini" id="categoryDetailValueCard" hidden><span>Valor estimado</span><strong id="categoryDetailValue">R$ 0</strong></article>
         </div>
         <div class="category-detail-actions">
           <button id="categoryDetailAddBtn" class="primary-btn" type="button">Adicionar item</button>
@@ -471,8 +471,14 @@
           <button id="categoryDetailEditBtn" class="secondary-btn" type="button">Editar categoria</button>
         </div>
         <div class="category-view-switcher" id="categoryViewSwitcher" role="tablist" aria-label="Modo de visualização">
-          <button type="button" class="category-view-btn" data-category-view="vitrine" role="tab">Vitrine</button>
-          <button type="button" class="category-view-btn" data-category-view="estante" role="tab">Estante</button>
+          <button type="button" class="category-view-btn category-view-btn-iconed" data-category-view="vitrine" role="tab" aria-label="Vitrine" title="Vitrine">
+            <span class="category-view-btn-icon" id="categoryViewVitrineIcon" aria-hidden="true"></span>
+            <span class="category-view-btn-label">Vitrine</span>
+          </button>
+          <button type="button" class="category-view-btn category-view-btn-iconed" data-category-view="estante" role="tab" aria-label="Estante" title="Estante">
+            <span class="category-view-btn-icon" id="categoryViewEstanteIcon" aria-hidden="true"></span>
+            <span class="category-view-btn-label">Estante</span>
+          </button>
           <button type="button" class="category-view-btn" data-category-view="timeline" role="tab">Linha do tempo</button>
           <button type="button" class="category-view-btn is-active" data-category-view="lista" role="tab">Lista</button>
         </div>
@@ -561,6 +567,6 @@
 
   <template id="emptyTemplate"><div class="empty"><span class="empty-symbol">◇</span><strong>Nenhum item por aqui ainda.</strong><p>Use “Adicionar item” para começar sua coleção.</p></div></template>
   <script src="storage.js?v=202606208"></script>
-  <script src="app.js?v=202607042"></script>
+  <script src="app.js?v=202607251"></script>
 </body>
 </html>

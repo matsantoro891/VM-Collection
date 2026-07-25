@@ -62,7 +62,9 @@ function iconSvg(type) {
     users: `<svg viewBox="0 0 24 24"><circle ${c} cx="9" cy="8" r="3"/><circle ${c} cx="17" cy="9" r="2.5"/><path ${c} d="M3 20a6 6 0 0 1 12 0m0-4a5 5 0 0 1 6 4"/></svg>`,
     calendar: `<svg viewBox="0 0 24 24"><rect ${c} x="3" y="5" width="18" height="16" rx="2"/><path ${c} d="M7 3v4m10-4v4M3 10h18"/></svg>`,
     search: `<svg viewBox="0 0 24 24"><circle ${c} cx="11" cy="11" r="6"/><path ${c} d="m16.5 16.5 4 4"/></svg>`,
-    home: `<svg viewBox="0 0 24 24"><path ${c} d="M4 10.5 12 4l8 6.5V20a1 1 0 0 1-1 1h-5v-6H10v6H5a1 1 0 0 1-1-1v-9.5Z"/></svg>`
+    home: `<svg viewBox="0 0 24 24"><path ${c} d="M4 10.5 12 4l8 6.5V20a1 1 0 0 1-1 1h-5v-6H10v6H5a1 1 0 0 1-1-1v-9.5Z"/></svg>`,
+    vitrine: `<svg viewBox="0 0 24 24"><rect ${c} x="4" y="3" width="16" height="18" rx="1.5"/><path ${c} d="M4 8h16M8 8v13m8-13v13M9 12h2m4 0h2m-6 4h2m4 0h2"/></svg>`,
+    estante: `<svg viewBox="0 0 24 24"><path ${c} d="M4 4h16v3H4zm0 6.5h16v3H4zm0 6.5h16v3H4z"/><path ${c} d="M6 5.5h3M6 12h4M6 18.5h3"/></svg>`
   };
   return icons[type] || "";
 }
@@ -74,7 +76,8 @@ function setStaticIcons() {
     reportIconCategory: "grid", reportIconBrand: "box", reportIconYear: "calendar", reportIconRare: "diamond",
     backupSettingIcon: "shield",
     navHomeIcon: "home", navSearchIcon: "search", navCategoryIcon: "grid", navProfileIcon: "profile",
-    categoryCoverBtnIcon: "camera"
+    categoryCoverBtnIcon: "camera",
+    categoryViewVitrineIcon: "vitrine", categoryViewEstanteIcon: "estante"
   };
   Object.entries(map).forEach(([id, type]) => { if ($(id)) $(id).innerHTML = iconSvg(type); });
 }
@@ -1082,14 +1085,12 @@ function renderCategories() {
   const grouped = getCategoryGroups().sort((a, b) => b.count - a.count);
   const cats = grouped.map((g) => g.cat);
   $("categoriesTotal").textContent = cats.length;
-  $("categoryCards").innerHTML = grouped.length ? grouped.map(({ id, cat, category, count: groupLength }) => {
-    const group = items.filter((i) => itemBelongsToCategory(i, id));
-    const total = group.reduce((sum, i) => sum + Number(i.estimatedValue || 0), 0);
+  $("categoryCards").innerHTML = grouped.length ? grouped.map(({ cat, category, count: groupLength }) => {
     const initials = cat.split(/\s+/).slice(0, 2).map((x) => x[0]).join("").toUpperCase();
     const media = category.image
       ? `<button type="button" class="category-cover category-cover-open" onclick="openCategoryDetail('${category.id}')" aria-label="Abrir categoria ${escapeHtml(cat)}"><img src="${category.image}" alt="" onerror="this.hidden=true;this.nextElementSibling.hidden=false"><div class="category-cover-placeholder" hidden>${escapeHtml(initials || "VM")}</div></button>`
       : `<button type="button" class="category-cover category-cover-open" onclick="openCategoryDetail('${category.id}')" aria-label="Abrir categoria ${escapeHtml(cat)}"><div class="category-cover-placeholder">${escapeHtml(initials || "VM")}</div></button>`;
-    return `<article class="category-card">${media}<div class="category-card-content"><div class="category-title-row"><span class="category-symbol">${escapeHtml(initials || "VM")}</span><h4>${escapeHtml(cat)}</h4></div><div class="category-meta"><div><span>Quantidade</span><strong>${groupLength} item(ns)</strong></div><div><span>Valor estimado</span><strong>${money(total)}</strong></div></div><div class="category-card-actions"><button type="button" class="secondary-btn" onclick="openCategoryDetail('${category.id}')">Abrir</button><button type="button" class="primary-btn" onclick="addItemFromCategory('${category.id}')">Adicionar item</button><button type="button" class="text-action" onclick="openCategoryEditor('${category.id}')">Editar</button></div></div></article>`;
+    return `<article class="category-card">${media}<div class="category-card-content"><div class="category-title-row"><span class="category-symbol">${escapeHtml(initials || "VM")}</span><h4>${escapeHtml(cat)}</h4></div><div class="category-meta"><div><span>Quantidade</span><strong>${groupLength} item(ns)</strong></div></div><div class="category-card-actions"><button type="button" class="secondary-btn" onclick="openCategoryDetail('${category.id}')">Abrir</button><button type="button" class="primary-btn" onclick="addItemFromCategory('${category.id}')">Adicionar item</button><button type="button" class="text-action" onclick="openCategoryEditor('${category.id}')">Editar</button></div></div></article>`;
   }).join("") : emptyHtml();
 }
 
@@ -1147,7 +1148,12 @@ function populateCategoryDetailContent(categoryId) {
   const linked = items.filter((item) => itemBelongsToCategory(item, categoryId));
   if ($("categoryDetailTitle")) $("categoryDetailTitle").textContent = category.name;
   if ($("categoryDetailCount")) $("categoryDetailCount").textContent = `${linked.length} item(ns)`;
-  if ($("categoryDetailValue")) $("categoryDetailValue").textContent = money(linked.reduce((sum, i) => sum + Number(i.estimatedValue || 0), 0));
+  const categoryTotal = linked.reduce((sum, i) => sum + Number(i.estimatedValue || 0), 0);
+  const valueCard = $("categoryDetailValueCard");
+  const showValue = hasPositiveMoney(categoryTotal);
+  if ($("categoryDetailValue")) $("categoryDetailValue").textContent = money(categoryTotal);
+  if (valueCard) valueCard.hidden = !showValue;
+  valueCard?.closest(".category-detail-summary")?.classList.toggle("has-estimated-value", showValue);
   if ($("categoryDetailCover")) {
     $("categoryDetailCover").innerHTML = category.image
       ? `<img src="${category.image}" alt="Capa de ${escapeHtml(category.name)}" onerror="this.hidden=true;this.nextElementSibling.hidden=false"><div class="category-cover-placeholder" hidden>${escapeHtml(category.name.slice(0, 2).toUpperCase())}</div>`
@@ -1829,6 +1835,10 @@ function readForm() {
   };
   ITEM_FORM_TEXT_FIELDS.forEach((id) => {
     payload[id] = $(id)?.value?.trim?.() ?? $(id)?.value ?? "";
+  });
+  // Preserva campos de memória ocultos da UI (legado) caso o input não exista no DOM
+  ["relatedPerson", "relatedPlace", "relatedEvent", "storageLocation", "eventDate", "connectedItems"].forEach((field) => {
+    if (!$(field)) payload[field] = existing?.[field] ?? "";
   });
   LEGACY_ITEM_FIELDS.forEach((field) => {
     payload[field] = existing?.[field] ?? "";
