@@ -185,6 +185,10 @@ svg{display:block;width:100%;height:100%}
 #addView .form-kicker-compact{font-size:.37rem;letter-spacing:.09em}
 #addView .form-identification-section .form-section-head h3{font-size:1.2rem}
 #addView .premium-form{padding-bottom:calc(110px + env(safe-area-inset-bottom, 0px));max-width:100%;min-width:0}
+/* Cadastro: remove a faixa navy lateral (.section-number) para ampliar o formulário no iPhone */
+#addView .form-section{grid-template-columns:minmax(0,1fr)}
+#addView .section-number{display:none}
+#addView .form-section-content{padding:22px 18px}
 .premium-page-banner.category-banner{min-height:115px;padding:16px 22px 18px;align-items:center}
 .premium-page-banner.category-banner .page-banner-copy h2{font-size:clamp(1.35rem,4.2vw,2rem);line-height:1.05;margin:6px 0 0}
 .premium-page-banner.category-banner .banner-icon{width:52px;height:52px;margin:0 4px 0 8px;opacity:.88}
@@ -501,7 +505,11 @@ dialog::backdrop{background:rgba(8,18,34,.63);backdrop-filter:blur(5px)}
   .premium-page-banner{min-height:220px;padding:24px 20px 78px}.premium-page-banner .banner-icon{position:absolute;right:15px;top:25px;width:78px;height:78px;margin:0;opacity:.65}.page-banner-copy{padding-right:54px}.page-banner-copy p{max-width:390px}.banner-action{left:20px;bottom:22px}.profile-banner{padding-bottom:24px;align-items:center}.profile-mark{width:78px;height:78px;font-size:1.8rem;margin-right:14px}.profile-banner .page-banner-copy{padding-right:0}.profile-banner .page-banner-copy p{display:none}
   .advanced-filters,.form-grid,.detail-table,.category-grid,.report-summary-grid{grid-template-columns:1fr}.field-wide{grid-column:auto}
   .catalog-toolbar{align-items:stretch;flex-direction:column}.selection-summary{grid-template-columns:1fr 1fr}.catalog-controls{justify-content:space-between}.catalog-controls select{flex:1}
-  .form-section{grid-template-columns:46px minmax(0,1fr)}.section-number{padding-top:24px;font-size:.9rem}.form-section-content{padding:18px 12px}.photo-thumb-grid{max-width:none;grid-template-columns:repeat(auto-fill,minmax(76px,1fr))}.flags-row{grid-template-columns:1fr}
+  .form-section{grid-template-columns:46px minmax(0,1fr)}.section-number{padding-top:24px;font-size:.9rem}.form-section-content{padding:18px 12px}
+  #addView .form-section{grid-template-columns:minmax(0,1fr)}
+  #addView .section-number{display:none}
+  #addView .form-section-content{padding:18px 14px}
+  .photo-thumb-grid{max-width:none;grid-template-columns:repeat(auto-fill,minmax(76px,1fr))}.flags-row{grid-template-columns:1fr}
   .category-summary-row{grid-template-columns:1fr}.stats-dashboard{grid-template-columns:1fr 1fr}.report-summary-grid{grid-template-columns:1fr 1fr}.report-summary-grid article:last-child{grid-column:1/-1}
   .profile-overview{align-items:flex-start}.status-pill{display:none}.setting-card{grid-template-columns:48px 1fr}
   .detail-hero{grid-template-columns:1fr}.detail-media,.detail-media img,.detail-media-main,.detail-media-main img,.detail-placeholder{min-height:330px;height:330px}
