@@ -1,5 +1,6 @@
 {
   "cleanUrls": true,
+  "buildCommand": "node scripts/generate-config.js",
   "headers": [
     {
       "source": "/sw.js",
@@ -35,6 +36,36 @@
       "source": "/storage.js",
       "headers": [
         { "key": "Cache-Control", "value": "public, max-age=0, must-revalidate" }
+      ]
+    },
+    {
+      "source": "/boot.js",
+      "headers": [
+        { "key": "Cache-Control", "value": "public, max-age=0, must-revalidate" }
+      ]
+    },
+    {
+      "source": "/auth.js",
+      "headers": [
+        { "key": "Cache-Control", "value": "public, max-age=0, must-revalidate" }
+      ]
+    },
+    {
+      "source": "/sync.js",
+      "headers": [
+        { "key": "Cache-Control", "value": "public, max-age=0, must-revalidate" }
+      ]
+    },
+    {
+      "source": "/config.generated.js",
+      "headers": [
+        { "key": "Cache-Control", "value": "public, max-age=0, must-revalidate" }
+      ]
+    },
+    {
+      "source": "/api/config",
+      "headers": [
+        { "key": "Cache-Control", "value": "public, max-age=60, must-revalidate" }
       ]
     }
   ]

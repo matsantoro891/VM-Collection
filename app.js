@@ -75,6 +75,7 @@ function setStaticIcons() {
     bannerCatalogIcon: "grid", bannerAddIcon: "camera", bannerCategoryIcon: "box", bannerReportIcon: "bars", bannerStatsIcon: "trend",
     reportIconCategory: "grid", reportIconBrand: "box", reportIconYear: "calendar", reportIconRare: "diamond",
     backupSettingIcon: "shield",
+    sessionSettingIcon: "shield",
     navHomeIcon: "home", navSearchIcon: "search", navCategoryIcon: "grid", navProfileIcon: "profile",
     categoryCoverBtnIcon: "camera",
     categoryViewVitrineIcon: "vitrine", categoryViewEstanteIcon: "estante"
@@ -88,7 +89,9 @@ function normalizeProfile(raw = {}) {
     birthDate: String(raw.birthDate || ""),
     bio: String(raw.bio || ""),
     photo: String(raw.photo || ""),
-    updatedAt: raw.updatedAt || new Date().toISOString()
+    updatedAt: raw.updatedAt || new Date().toISOString(),
+    cloudSyncedAt: raw.cloudSyncedAt || "",
+    cloudOrigin: !!raw.cloudOrigin
   };
 }
 
@@ -147,7 +150,9 @@ function normalizeItem(raw = {}) {
     photo: photos[0] || String(raw.photo || ""),
     video: String(raw.video || ""),
     attachments: Array.isArray(raw.attachments) ? raw.attachments.map(normalizeAttachment) : [],
-    updatedAt: raw.updatedAt || new Date().toISOString(), createdAt: raw.createdAt || new Date().toISOString()
+    updatedAt: raw.updatedAt || new Date().toISOString(), createdAt: raw.createdAt || new Date().toISOString(),
+    cloudSyncedAt: raw.cloudSyncedAt || "",
+    cloudOrigin: !!raw.cloudOrigin
   };
   if (Object.prototype.hasOwnProperty.call(raw, "owned")) item.owned = !!raw.owned;
   return item;
@@ -168,7 +173,9 @@ function normalizeCategory(raw = {}) {
     image: String(raw.image || ""),
     attachments: Array.isArray(raw.attachments) ? raw.attachments.map(normalizeAttachment) : [],
     createdAt: raw.createdAt || new Date().toISOString(),
-    updatedAt: raw.updatedAt || new Date().toISOString()
+    updatedAt: raw.updatedAt || new Date().toISOString(),
+    cloudSyncedAt: raw.cloudSyncedAt || "",
+    cloudOrigin: !!raw.cloudOrigin
   };
 }
 
@@ -244,6 +251,90 @@ async function saveProfile() {
     throw error;
   }
 }
+
+function canSyncCloud() {
+  return !!(window.VMAuth?.isAuthenticated?.() && window.VMSync);
+}
+
+function updateSessionPanel() {
+  const auth = window.VMAuth?.getState?.();
+  const email = auth?.user?.email || "";
+  if ($("sessionAccountLabel")) {
+    $("sessionAccountLabel").textContent = email
+      ? `Conectado como ${email}. A sessão permanece neste aparelho até você sair.`
+      : "Sua sessão permanece ativa neste aparelho até você sair.";
+  }
+}
+
+async function syncItemToCloud(item) {
+  if (!canSyncCloud() || !item) return;
+  const result = await window.VMSync.pushItem(item);
+  if (result?.ok) {
+    const idx = items.findIndex((i) => i.id === item.id);
+    if (idx >= 0) {
+      items[idx] = normalizeItem({ ...items[idx], cloudSyncedAt: new Date().toISOString(), cloudOrigin: true });
+      await VMStorage.put("items", items[idx]);
+    }
+  } else if (result?.offline) {
+    updateBackupStatus("Sem internet: item salvo só neste aparelho. Será possível sincronizar depois.");
+  } else if (result && !result.skipped) {
+    updateBackupStatus("Item salvo localmente. A sincronização na nuvem falhou temporariamente.", true);
+  }
+}
+
+async function syncCategoryToCloud(category) {
+  if (!canSyncCloud() || !category) return;
+  const result = await window.VMSync.pushCategory(category);
+  if (result?.ok) {
+    const idx = categories.findIndex((c) => c.id === category.id);
+    if (idx >= 0) {
+      categories[idx] = normalizeCategory({ ...categories[idx], cloudSyncedAt: new Date().toISOString(), cloudOrigin: true });
+      await VMStorage.replaceAll("categories", categories);
+    }
+  } else if (result?.offline) {
+    updateBackupStatus("Sem internet: categoria salva só neste aparelho.");
+  } else if (result && !result.skipped) {
+    updateBackupStatus("Categoria salva localmente. Sincronização na nuvem pendente.", true);
+  }
+}
+
+async function syncProfileToCloud() {
+  if (!canSyncCloud()) return;
+  const result = await window.VMSync.pushProfile(profile);
+  if (result?.ok) {
+    profile = normalizeProfile({ ...profile, cloudSyncedAt: new Date().toISOString(), cloudOrigin: true });
+    await VMStorage.setSetting("profile", profile);
+  } else if (result?.offline) {
+    if ($("profileSaveStatus")) $("profileSaveStatus").textContent = "Perfil salvo neste aparelho (offline).";
+  } else if (result && !result.skipped) {
+    if ($("profileSaveStatus")) $("profileSaveStatus").textContent = "Perfil local salvo. Nuvem pendente.";
+  }
+}
+
+async function refreshCloudCollection() {
+  if (!canSyncCloud() || !window.VMSync.isOnline()) return { ok: false, offline: true };
+  try {
+    const remote = await window.VMSync.pullAll();
+    if (!remote?.ok) return remote || { ok: false };
+    const merged = window.VMSync.mergeCollections(items, categories, profile, remote);
+    items = merged.items.map(normalizeItem);
+    categories = merged.categories.map(normalizeCategory);
+    profile = normalizeProfile(merged.profile);
+    profileDraftPhoto = profile.photo || "";
+    await VMStorage.replaceAll("items", items);
+    await VMStorage.replaceAll("categories", categories);
+    await VMStorage.setSetting("profile", profile);
+    await VMStorage.setSetting("lastCloudPullAt", new Date().toISOString());
+    renderAll();
+    renderProfile();
+    return { ok: true };
+  } catch (error) {
+    console.error(error);
+    return { ok: false, error };
+  }
+}
+
+window.refreshCloudCollection = refreshCloudCollection;
 
 const HERO_PROFILE_FALLBACK = "assets/icon-192.png";
 
@@ -1227,6 +1318,9 @@ async function deleteCategory(categoryId) {
   try {
     categories = categories.filter((c) => c.id !== categoryId);
     await VMStorage.replaceAll("categories", categories);
+    if (canSyncCloud()) {
+      window.VMSync.deleteRemoteCategory(categoryId).catch((error) => console.error(error));
+    }
     if (activeCategoryDetailId === categoryId) activeCategoryDetailId = "";
     renderCategories();
     renderHome();
@@ -1323,6 +1417,10 @@ async function saveCategoryMedia() {
         if (item.category === previousName) item.category = name;
       });
       await saveItems();
+      if (canSyncCloud()) {
+        const renamed = items.filter((item) => item.category === name);
+        for (const item of renamed) await syncItemToCloud(item);
+      }
     }
   } else {
     const created = normalizeCategory({
@@ -1337,6 +1435,9 @@ async function saveCategoryMedia() {
 
   categories.sort((a, b) => a.name.localeCompare(b.name, "pt-BR"));
   await VMStorage.replaceAll("categories", categories);
+  const savedCategory = categories.find((c) => c.id === (editingCategoryId || categories.find((x) => x.name === name)?.id));
+  const categoryToSync = categories.find((c) => c.name.toLowerCase() === name.toLowerCase());
+  if (categoryToSync) await syncCategoryToCloud(categoryToSync);
   renderCategories();
   renderHome();
   updateCategoryControls();
@@ -1347,7 +1448,7 @@ async function saveCategoryMedia() {
   if ($("deleteCategoryBtn")) $("deleteCategoryBtn").hidden = true;
   $("categoryDialog")?.close();
 
-  const returnCategoryId = resume?.categoryId || savedCategoryId;
+  const returnCategoryId = resume?.categoryId || savedCategoryId || savedCategory?.id;
   if (returnCategoryId && categories.some((c) => c.id === returnCategoryId)) {
     categoryDetailState.resumeAfterEdit = null;
     openCategoryDetail(returnCategoryId, { preservePageScroll: true, restoreItemsScroll: resume?.scroll ?? 0 });
@@ -2105,6 +2206,9 @@ async function deleteItem(id) {
   try {
     items = items.filter((i) => i.id !== id);
     await saveItems();
+    if (canSyncCloud()) {
+      window.VMSync.deleteRemoteItem(id).catch((error) => console.error(error));
+    }
     if (categoryId) {
       openCategoryDetail(categoryId, { preservePageScroll: true, restoreItemsScroll: itemsScroll });
     } else {
@@ -2633,12 +2737,24 @@ async function initializePersistentApp() {
     alert(`Não foi possível abrir o armazenamento persistente do ${APP_DISPLAY_NAME}.`);
   }
 
+  if (canSyncCloud()) {
+    updateBackupStatus("Sincronizando coleção na nuvem…");
+    const pull = await refreshCloudCollection();
+    if (pull?.ok) updateBackupStatus("Coleção local e nuvem alinhadas para os registros sincronizados.");
+    else if (pull?.offline) updateBackupStatus("Offline: exibindo a coleção já salva neste aparelho.");
+    else updateBackupStatus("Não foi possível sincronizar agora. Seus dados locais permanecem disponíveis.", true);
+  }
+
   renderAll();
   renderProfile();
   renderMediaSection();
   renderItemAttachmentList();
   renderMemoryAudioList();
   resetCatalogFilters({ render: true });
+  updateSessionPanel();
+
+  if (initializePersistentApp._listenersBound) return;
+  initializePersistentApp._listenersBound = true;
 
   document.addEventListener("click", (e) => {
     const bottomNavBtn = e.target.closest(".nav-item[data-go]");
@@ -2665,6 +2781,7 @@ async function initializePersistentApp() {
     if (idx >= 0) items[idx] = item; else items.unshift(item);
     try {
       await saveItems();
+      await syncItemToCloud(item);
       clearForm();
       if (resume?.categoryId) {
         itemDetailState.resumeAfterEdit = { ...resume, itemId: item.id };
@@ -2771,9 +2888,23 @@ async function initializePersistentApp() {
       updatedAt: new Date().toISOString()
     });
     await saveProfile();
+    await syncProfileToCloud();
     $("profileSaveStatus").textContent = "Perfil salvo no dispositivo.";
     setTimeout(() => { if ($("profileSaveStatus")) $("profileSaveStatus").textContent = ""; }, 2500);
   });
+
+  $("logoutBtn")?.addEventListener("click", async () => {
+    const confirmed = confirm(
+      "Deseja sair da conta?\n\nA coleção local, imagens, anexos e backups neste aparelho NÃO serão apagados. Apenas a sessão será encerrada."
+    );
+    if (!confirmed) return;
+    if ($("sessionStatus")) $("sessionStatus").textContent = "Encerrando sessão…";
+    await window.VMAuth.signOut();
+    if ($("sessionStatus")) $("sessionStatus").textContent = "";
+  });
+
+  updateSessionPanel();
+  window.VMAuth?.subscribe?.(() => updateSessionPanel());
 
   $("exportBtn").addEventListener("click", exportBackupNative);
   $("importInput").addEventListener("change", async (e) => {
@@ -2804,4 +2935,4 @@ async function initializePersistentApp() {
   updateCategoryViewSwitcherUI();
 }
 
-document.addEventListener("DOMContentLoaded", initializePersistentApp);
+window.startVmCollectionApp = initializePersistentApp;

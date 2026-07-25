@@ -8,14 +8,120 @@
   <meta name="apple-mobile-web-app-title" content="VM Life ARCHIVE" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
   <title>VM Life ARCHIVE</title>
-  <meta name="vm-asset-version" content="202607251" />
+  <meta name="vm-asset-version" content="202607252" />
   <link rel="manifest" href="manifest.webmanifest" />
   <link rel="apple-touch-icon" href="assets/icon-180.png" />
   <link rel="icon" href="assets/icon-192.png" />
-  <link rel="stylesheet" href="styles.css?v=202607251" />
+  <link rel="stylesheet" href="styles.css?v=202607252" />
 </head>
 <body>
-  <div id="appShell">
+  <div id="authBootScreen" class="auth-boot" role="status" aria-live="polite">
+    <div class="auth-boot-card">
+      <img src="assets/icon-192.png" alt="" class="auth-boot-logo" width="56" height="56" />
+      <p id="authBootMessage">Preparando sua sessão…</p>
+    </div>
+  </div>
+
+  <div id="authGate" class="auth-gate" hidden>
+    <div class="auth-shell">
+      <header class="auth-brand">
+        <img src="assets/icon-192.png" alt="Logo VM Life ARCHIVE" class="auth-brand-logo" />
+        <div class="auth-brand-text">
+          <div class="brand-vm">VM</div>
+          <div class="brand-collection">Life ARCHIVE</div>
+          <div class="brand-line"><span></span><i></i><span></span></div>
+        </div>
+      </header>
+
+      <section id="authSignInPanel" class="auth-panel">
+        <h1>Entrar</h1>
+        <p class="auth-lead">Acesse sua coleção com e-mail e senha.</p>
+        <form id="authSignInForm" class="auth-form" novalidate>
+          <label>E-mail
+            <input id="authSignInEmail" type="email" autocomplete="email" required />
+          </label>
+          <label>Senha
+            <div class="auth-password-row">
+              <input id="authSignInPassword" type="password" autocomplete="current-password" required />
+              <button type="button" class="text-action" data-auth-toggle-password>Mostrar</button>
+            </div>
+          </label>
+          <p id="authSignInError" class="auth-error" aria-live="polite"></p>
+          <p id="authSignInInfo" class="auth-info" aria-live="polite"></p>
+          <button id="authSignInSubmit" class="primary-btn auth-submit" type="submit">Entrar</button>
+        </form>
+        <div class="auth-links">
+          <button type="button" class="link-btn" id="authGoRecovery">Esqueci minha senha</button>
+          <button type="button" class="link-btn" id="authGoSignUp">Criar uma conta</button>
+        </div>
+      </section>
+
+      <section id="authSignUpPanel" class="auth-panel" hidden>
+        <h1>Criar conta</h1>
+        <p class="auth-lead">Comece a sincronizar sua coleção entre aparelhos.</p>
+        <form id="authSignUpForm" class="auth-form" novalidate>
+          <label>Nome
+            <input id="authSignUpName" type="text" autocomplete="name" />
+          </label>
+          <label>E-mail
+            <input id="authSignUpEmail" type="email" autocomplete="email" required />
+          </label>
+          <label>Senha
+            <div class="auth-password-row">
+              <input id="authSignUpPassword" type="password" autocomplete="new-password" required />
+              <button type="button" class="text-action" data-auth-toggle-password>Mostrar</button>
+            </div>
+          </label>
+          <label>Confirmar senha
+            <input id="authSignUpPasswordConfirm" type="password" autocomplete="new-password" required />
+          </label>
+          <p id="authSignUpError" class="auth-error" aria-live="polite"></p>
+          <p id="authSignUpInfo" class="auth-info" aria-live="polite"></p>
+          <button id="authSignUpSubmit" class="primary-btn auth-submit" type="submit">Criar conta</button>
+        </form>
+        <div class="auth-links">
+          <button type="button" class="link-btn" id="authGoSignIn">Já tenho conta</button>
+        </div>
+      </section>
+
+      <section id="authRecoveryPanel" class="auth-panel" hidden>
+        <h1>Recuperar senha</h1>
+        <p class="auth-lead">Enviaremos instruções se o e-mail estiver cadastrado.</p>
+        <form id="authRecoveryForm" class="auth-form" novalidate>
+          <label>E-mail
+            <input id="authRecoveryEmail" type="email" autocomplete="email" required />
+          </label>
+          <p id="authRecoveryError" class="auth-error" aria-live="polite"></p>
+          <p id="authRecoveryInfo" class="auth-info" aria-live="polite"></p>
+          <button id="authRecoverySubmit" class="primary-btn auth-submit" type="submit">Enviar link</button>
+        </form>
+        <div class="auth-links">
+          <button type="button" class="link-btn" id="authGoSignInFromRecovery">Voltar ao login</button>
+        </div>
+      </section>
+
+      <section id="authUpdatePasswordPanel" class="auth-panel" hidden>
+        <h1>Nova senha</h1>
+        <p class="auth-lead">Defina uma nova senha para continuar.</p>
+        <form id="authUpdatePasswordForm" class="auth-form" novalidate>
+          <label>Nova senha
+            <div class="auth-password-row">
+              <input id="authNewPassword" type="password" autocomplete="new-password" required />
+              <button type="button" class="text-action" data-auth-toggle-password>Mostrar</button>
+            </div>
+          </label>
+          <label>Confirmar senha
+            <input id="authNewPasswordConfirm" type="password" autocomplete="new-password" required />
+          </label>
+          <p id="authUpdatePasswordError" class="auth-error" aria-live="polite"></p>
+          <p id="authUpdatePasswordInfo" class="auth-info" aria-live="polite"></p>
+          <button id="authUpdatePasswordSubmit" class="primary-btn auth-submit" type="submit">Salvar senha</button>
+        </form>
+      </section>
+    </div>
+  </div>
+
+  <div id="appShell" hidden>
     <header class="topbar">
       <button class="brand-wrap" type="button" data-go="homeView" aria-label="Ir para o início">
         <img src="assets/icon-192.png" alt="Logo VM Life ARCHIVE" class="brand-logo" />
@@ -366,6 +472,18 @@
             <div class="setting-copy"><span class="panel-kicker">SEGURANÇA</span><h3>Backup da coleção</h3><p>Exporte um arquivo completo com itens, fotos, vídeos e dados do perfil, ou restaure tudo em outro aparelho.</p></div>
             <div class="setting-actions"><button id="exportBtn" class="primary-btn" type="button">Exportar backup</button><label class="secondary-btn file-backup">Importar backup<input id="importInput" type="file" accept="application/json" hidden /></label></div><small id="backupStatus" class="backup-status" aria-live="polite"></small>
           </article>
+          <article class="info-card setting-card">
+            <div class="setting-icon" id="sessionSettingIcon"></div>
+            <div class="setting-copy">
+              <span class="panel-kicker">SESSÃO</span>
+              <h3>Conta conectada</h3>
+              <p id="sessionAccountLabel">Sua sessão permanece ativa neste aparelho até você sair.</p>
+            </div>
+            <div class="setting-actions">
+              <button id="logoutBtn" class="secondary-btn" type="button">Sair</button>
+            </div>
+            <small id="sessionStatus" class="backup-status" aria-live="polite"></small>
+          </article>
         </div>
       </section>
 
@@ -566,7 +684,15 @@
   </dialog>
 
   <template id="emptyTemplate"><div class="empty"><span class="empty-symbol">◇</span><strong>Nenhum item por aqui ainda.</strong><p>Use “Adicionar item” para começar sua coleção.</p></div></template>
+  <script src="config.generated.js?v=202607252"></script>
+  <script src="vendor/supabase.umd.js?v=2.50.0"></script>
+  <script src="config-loader.js?v=202607252"></script>
+  <script src="supabase-client.js?v=202607252"></script>
+  <script src="auth.js?v=202607252"></script>
+  <script src="sync.js?v=202607252"></script>
+  <script src="auth-ui.js?v=202607252"></script>
   <script src="storage.js?v=202606208"></script>
-  <script src="app.js?v=202607251"></script>
+  <script src="app.js?v=202607252"></script>
+  <script src="boot.js?v=202607252"></script>
 </body>
 </html>

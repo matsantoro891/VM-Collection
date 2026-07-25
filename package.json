@@ -1,0 +1,12 @@
+{
+  "name": "vm-collection",
+  "private": true,
+  "description": "VM Life ARCHIVE — static PWA. Runtime does not require npm; vendor/ holds a fixed supabase-js UMD bundle.",
+  "scripts": {
+    "generate-config": "node scripts/generate-config.js",
+    "vendor:supabase": "node scripts/fetch-supabase-vendor.js"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}

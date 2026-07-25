@@ -24,7 +24,10 @@ Esta versão amplia o padrão visual premium da tela inicial para todas as área
 
 ## Observação
 
-A sincronização multiusuário em celulares diferentes ainda requer backend e autenticação.
+Autenticação e sincronização na nuvem usam Supabase (e-mail/senha + Postgres + Storage privado).
+Veja `SUPABASE_SETUP.md` para variáveis na Vercel, migration SQL e URLs de redirect.
+
+A migração em massa do acervo local antigo (pré-conta) não é automática: novos cadastros e edições enquanto autenticado são gravados na nuvem e podem ser recuperados em outro aparelho.
 
 
 ## Atualização — Localizar itens
