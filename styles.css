@@ -68,6 +68,12 @@ svg{display:block;width:100%;height:100%}
 .section-title{display:flex;justify-content:space-between;align-items:end;gap:12px;margin:24px 2px 14px}
 .section-title h3{margin:0;font-family:Georgia,"Times New Roman",serif;font-size:2rem}
 .home-catalogs-title h3{font-size:1rem}
+.home-recent-title{align-items:flex-end;gap:10px}
+.home-recent-title h3{flex:1 1 auto;min-width:0;max-width:min(100%,14.5em);font-size:1rem;line-height:1.2}
+.home-recent-title .link-btn{flex:0 0 auto;white-space:nowrap}
+.categories-list-title{align-items:center;gap:10px}
+.categories-list-title h3{flex:1 1 auto;min-width:0;font-size:1rem;line-height:1.2;white-space:nowrap}
+.categories-list-title #createCategoryBtn{flex:0 1 auto;max-width:46%;white-space:normal;line-height:1.15;padding-inline:12px}
 .link-btn{background:transparent;color:var(--ink);padding:0;min-height:auto}
 .link-btn span{color:var(--gold);font-size:1.35rem}
 .stats-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:14px}
@@ -494,6 +500,9 @@ dialog::backdrop{background:rgba(8,18,34,.63);backdrop-filter:blur(5px)}
   .notify-btn{width:49px;height:49px}.hero-card{min-height:210px;padding:22px 18px}.hero-art{top:12px;right:6px;width:clamp(92px,26vw,105px)}.hero-profile-block{padding-top:clamp(22px,6vw,28px);gap:5px}.hero-profile-frame{width:clamp(52px,15vw,60px);height:clamp(52px,15vw,60px)}.hero-profile-name{max-width:clamp(70px,20vw,78px);font-size:.78rem}.hero-copy{padding-right:clamp(88px,25vw,98px);margin-left:-6px;padding-left:0}.hero-btn{min-width:min(100%,220px);min-height:30px;padding-inline:9px 14px;font-size:0.76rem;gap:6px}.hero-btn .hero-plus{width:25px;height:25px;font-size:1.1rem}
   .section-title h3{font-size:1.8rem}
   .home-catalogs-title h3{font-size:0.9rem}
+  .home-recent-title h3{font-size:0.9rem;line-height:1.2;max-width:min(100%,13.5em)}
+  .categories-list-title h3{font-size:0.9rem;line-height:1.2}
+  .categories-list-title #createCategoryBtn{font-size:.82rem;padding-inline:10px;max-width:48%}
   .catalog-period-grid{grid-template-columns:1fr}
   .premium-page-banner.catalog-banner{min-height:auto;padding:24px 20px 24px}
   #addView .compact-add-banner{min-height:96px;padding:12px 16px 16px;margin-bottom:10px}
