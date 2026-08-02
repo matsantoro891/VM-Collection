@@ -8,11 +8,11 @@
   <meta name="apple-mobile-web-app-title" content="VM Life ARCHIVE" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
   <title>VM Life ARCHIVE</title>
-  <meta name="vm-asset-version" content="202608024" />
+  <meta name="vm-asset-version" content="202608025" />
   <link rel="manifest" href="manifest.webmanifest" />
   <link rel="apple-touch-icon" href="assets/icon-180.png" />
   <link rel="icon" href="assets/icon-192.png" />
-  <link rel="stylesheet" href="styles.css?v=202608024" />
+  <link rel="stylesheet" href="styles.css?v=202608025" />
 </head>
 <body>
   <div id="appShell">
@@ -161,7 +161,7 @@
           <section class="form-section media-section">
             <div class="section-number">01</div>
             <div class="form-section-content">
-              <div class="form-section-head"><div><span class="panel-kicker">IMAGENS DO ITEM</span><h3>Foto e vídeo</h3></div><button class="text-action" id="removeMediaBtn" type="button">Remover mídia</button></div>
+              <div class="form-section-head media-section-head" aria-label="Imagens do item"><div><span class="panel-kicker">IMAGENS DO ITEM</span></div><button class="text-action" id="removeMediaBtn" type="button">Remover mídia</button></div>
               <div class="media-compact-panel">
                 <button type="button" class="media-add-btn" id="openMediaMenuBtn" aria-label="Adicionar mídia" aria-haspopup="dialog" aria-controls="mediaMenuDialog">
                   <span class="media-add-btn-icon" id="mediaAddBtnIcon" aria-hidden="true"></span>
@@ -174,12 +174,11 @@
               <input id="cameraInput" type="file" accept="image/*" capture="environment" hidden />
               <input id="galleryInput" type="file" accept="image/*" multiple hidden />
               <input id="mediaFileInput" type="file" multiple accept="image/*,.pdf,.doc,.docx,.xls,.xlsx,.txt,.zip" hidden />
-              <div class="persistent-files-panel">
+              <div class="persistent-files-panel" aria-label="Arquivos persistentes">
                 <div class="persistent-files-copy">
                   <span class="panel-kicker">ARQUIVOS PERSISTENTES</span>
-                  <h4>Documentos do item</h4>
                 </div>
-                <label class="secondary-btn persistent-file-button">Anexar arquivos
+                <label class="secondary-btn persistent-file-button" aria-label="Anexar arquivos">Anexar arquivos
                   <input id="itemFilesInput" type="file" multiple accept="image/*,.pdf,.doc,.docx,.xls,.xlsx,.txt,.zip" hidden />
                 </label>
               </div>
