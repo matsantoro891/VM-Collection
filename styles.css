@@ -649,6 +649,17 @@ dialog::backdrop{background:rgba(8,18,34,.63);backdrop-filter:blur(5px)}
 .custom-field-options-wrap{margin-top:10px}
 .custom-field-inactive-badge{display:inline-flex;align-items:center;padding:3px 10px;border-radius:999px;background:rgba(7,17,31,.08);color:var(--muted);font-size:.72rem;font-weight:700;letter-spacing:.04em;text-transform:uppercase}
 .item-category-picker{display:flex;flex-direction:column;margin:0 0 14px;max-width:100%}
+.category-combobox{position:relative;display:grid;grid-template-columns:minmax(0,1fr) 46px;align-items:stretch;max-width:100%}
+.category-combobox #category{border-radius:17px 0 0 17px;margin-top:7px}
+.category-combobox-toggle{margin-top:7px;border:1px solid var(--line);border-left:0;border-radius:0 17px 17px 0;background:#fff;color:var(--navy);font-size:1rem;line-height:1;cursor:pointer;min-height:46px}
+.category-combobox-toggle:hover{background:var(--surface-2)}
+.category-combobox-toggle:focus-visible,#category:focus-visible{outline:3px solid rgba(180,134,62,.28);outline-offset:2px}
+.category-combobox-menu{position:absolute;left:0;right:0;top:calc(100% + 4px);z-index:40;margin:0;padding:6px;list-style:none;max-height:220px;overflow:auto;background:var(--surface);border:1px solid var(--line);border-radius:16px;box-shadow:var(--shadow-soft)}
+.category-combobox-menu[hidden]{display:none !important}
+.category-combobox-option{width:100%;text-align:left;border:0;background:transparent;border-radius:12px;padding:11px 12px;cursor:pointer;color:var(--ink);font:inherit;font-weight:650}
+.category-combobox-option:hover,.category-combobox-option:focus-visible{background:var(--surface-2);outline:none}
+.category-combobox-option.is-selected{background:rgba(7,17,31,.06);box-shadow:inset 3px 0 0 var(--gold)}
+.category-combobox-empty{padding:12px;color:var(--muted);font-size:.9rem}
 .item-custom-fields-mount{margin-top:0;padding-top:0;border-top:0}
 .item-custom-fields-mount.is-empty{display:block}
 .item-custom-fields-empty-wrap{display:flex;flex-direction:column;align-items:flex-start;gap:8px;padding:4px 0 2px}

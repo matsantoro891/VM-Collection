@@ -473,6 +473,177 @@ function renderItemCustomFields(categoryName, { announce = false } = {}) {
   mount.innerHTML = fields.map((field) => buildItemCustomFieldInputHtml(field, itemCustomFieldValuesDraft[field.id] || "")).join("");
 }
 
+const categoryComboboxState = {
+  open: false,
+  searching: false,
+  committed: ""
+};
+
+function getCategoryPickerNames({ searching = false, query = "" } = {}) {
+  const names = getCategories();
+  if (!searching) return names;
+  const needle = String(query || "").trim().toLowerCase();
+  if (!needle) return names;
+  return names.filter((name) => name.toLowerCase().includes(needle));
+}
+
+function setCategoryComboboxExpanded(open) {
+  categoryComboboxState.open = !!open;
+  $("category")?.setAttribute("aria-expanded", open ? "true" : "false");
+  $("categoryPickerToggle")?.setAttribute("aria-expanded", open ? "true" : "false");
+}
+
+function closeCategoryCombobox() {
+  const menu = $("categoryMenu");
+  if (menu) {
+    menu.hidden = true;
+    menu.innerHTML = "";
+  }
+  setCategoryComboboxExpanded(false);
+}
+
+function renderCategoryComboboxMenu() {
+  const menu = $("categoryMenu");
+  const input = $("category");
+  if (!menu || !input) return;
+  const selected = categoryComboboxState.committed || String(input.value || "").trim();
+  const names = getCategoryPickerNames({
+    searching: categoryComboboxState.searching,
+    query: input.value
+  });
+  if (!names.length) {
+    menu.innerHTML = '<li class="category-combobox-empty" role="presentation">Nenhuma categoria disponível.</li>';
+  } else {
+    menu.innerHTML = names.map((name) => {
+      const selectedClass = name.toLowerCase() === selected.toLowerCase() ? " is-selected" : "";
+      const ariaSelected = name.toLowerCase() === selected.toLowerCase() ? "true" : "false";
+      return `<li role="presentation"><button type="button" class="category-combobox-option${selectedClass}" role="option" aria-selected="${ariaSelected}" data-category-name="${escapeHtml(name)}">${escapeHtml(name)}</button></li>`;
+    }).join("");
+  }
+  menu.hidden = false;
+  setCategoryComboboxExpanded(true);
+  const selectedBtn = menu.querySelector(".category-combobox-option.is-selected");
+  selectedBtn?.scrollIntoView({ block: "nearest" });
+}
+
+function openCategoryCombobox({ searching = false } = {}) {
+  categoryComboboxState.searching = !!searching;
+  if (!searching) {
+    categoryComboboxState.committed = String($("category")?.value || categoryComboboxState.committed || "").trim();
+  }
+  renderCategoryComboboxMenu();
+}
+
+function commitCategoryComboboxValue(name, { forceChange = false } = {}) {
+  const next = String(name || "").trim();
+  const previousCommitted = categoryComboboxState.committed;
+  const input = $("category");
+  if (input) input.value = next;
+  closeCategoryCombobox();
+  const accepted = handleItemCategoryChange(next, { force: forceChange });
+  if (accepted === false) {
+    if (input) input.value = previousCommitted;
+    categoryComboboxState.committed = previousCommitted;
+    categoryComboboxState.searching = false;
+    return false;
+  }
+  categoryComboboxState.committed = next;
+  categoryComboboxState.searching = false;
+  return true;
+}
+
+function syncCategoryComboboxCommitted(name = "") {
+  const value = String(name || $("category")?.value || "").trim();
+  categoryComboboxState.committed = value;
+  categoryComboboxState.searching = false;
+  if ($("category") && name != null && name !== "") $("category").value = value;
+  closeCategoryCombobox();
+}
+
+function setupCategoryCombobox() {
+  const input = $("category");
+  const toggle = $("categoryPickerToggle");
+  const menu = $("categoryMenu");
+  if (!input || !toggle || !menu) return;
+
+  toggle.addEventListener("click", (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (categoryComboboxState.open && !categoryComboboxState.searching) {
+      closeCategoryCombobox();
+      return;
+    }
+    openCategoryCombobox({ searching: false });
+  });
+
+  input.addEventListener("focus", () => {
+    if (!categoryComboboxState.searching) openCategoryCombobox({ searching: false });
+  });
+
+  input.addEventListener("input", () => {
+    categoryComboboxState.searching = true;
+    openCategoryCombobox({ searching: true });
+  });
+
+  input.addEventListener("keydown", (e) => {
+    if (e.key === "Escape") {
+      closeCategoryCombobox();
+      input.value = categoryComboboxState.committed;
+      return;
+    }
+    if (e.key === "ArrowDown") {
+      e.preventDefault();
+      openCategoryCombobox({ searching: categoryComboboxState.searching });
+      menu.querySelector(".category-combobox-option")?.focus();
+      return;
+    }
+    if (e.key === "Enter" && categoryComboboxState.open) {
+      const first = menu.querySelector(".category-combobox-option");
+      if (first) {
+        e.preventDefault();
+        commitCategoryComboboxValue(first.getAttribute("data-category-name") || first.textContent || "");
+      }
+    }
+  });
+
+  input.addEventListener("blur", () => {
+    window.setTimeout(() => {
+      if (menu.contains(document.activeElement) || toggle === document.activeElement) return;
+      const typed = String(input.value || "").trim();
+      const match = getCategories().find((name) => name.toLowerCase() === typed.toLowerCase());
+      if (match) commitCategoryComboboxValue(match);
+      else {
+        input.value = categoryComboboxState.committed;
+        categoryComboboxState.searching = false;
+        closeCategoryCombobox();
+      }
+    }, 120);
+  });
+
+  menu.addEventListener("mousedown", (e) => {
+    e.preventDefault();
+  });
+
+  menu.addEventListener("click", (e) => {
+    const option = e.target.closest(".category-combobox-option");
+    if (!option) return;
+    commitCategoryComboboxValue(option.getAttribute("data-category-name") || option.textContent || "");
+  });
+
+  document.addEventListener("click", (e) => {
+    if (!categoryComboboxState.open) return;
+    if (e.target.closest(".category-combobox")) return;
+    const typed = String(input.value || "").trim();
+    const match = getCategories().find((name) => name.toLowerCase() === typed.toLowerCase());
+    if (match) commitCategoryComboboxValue(match);
+    else {
+      input.value = categoryComboboxState.committed;
+      categoryComboboxState.searching = false;
+      closeCategoryCombobox();
+    }
+  });
+}
+
 function handleItemCategoryChange(nextCategoryName, { force = false } = {}) {
   const next = String(nextCategoryName || "").trim();
   collectItemCustomFieldValuesFromDom();
@@ -485,6 +656,7 @@ function handleItemCategoryChange(nextCategoryName, { force = false } = {}) {
       const ok = confirm("Os campos personalizados exibidos serão alterados conforme a nova categoria.\n\nOs valores já preenchidos serão preservados internamente e poderão reaparecer se você voltar à categoria anterior.\n\nDeseja continuar?");
       if (!ok) {
         if ($("category")) $("category").value = previous;
+        categoryComboboxState.committed = previous;
         return false;
       }
     }
@@ -520,12 +692,6 @@ function setupCategoryCustomFieldsEditor() {
     if (!e.target.classList.contains("custom-field-type-input")) return;
     syncCategoryDraftCustomFieldsFromDom();
     renderCategoryCustomFieldsEditor();
-  });
-  $("category")?.addEventListener("change", () => {
-    handleItemCategoryChange($("category")?.value || "");
-  });
-  $("category")?.addEventListener("blur", () => {
-    handleItemCategoryChange($("category")?.value || "");
   });
   $("itemCustomFieldsMount")?.addEventListener("click", (e) => {
     const btn = e.target.closest("[data-configure-category-fields]");
@@ -1674,7 +1840,7 @@ function addItemFromCategory(categoryId) {
   if (!categoryName) return;
   closeCategoryDetailDialog();
   clearForm();
-  $("category").value = categoryName;
+  syncCategoryComboboxCommitted(categoryName);
   handleItemCategoryChange(categoryName, { force: true });
   showView("addView");
 }
@@ -1823,7 +1989,7 @@ function updateCategoryControls() {
     const legacyNameMatch = entries.find((entry) => entry.name === current)?.id || "";
     $("categoryFilter").value = validIds.has(current) ? current : legacyNameMatch;
   }
-  $("categoryList").innerHTML = entries.map(({ name }) => `<option value="${escapeHtml(name)}">`).join("");
+  if (categoryComboboxState.open) renderCategoryComboboxMenu();
 }
 
 function renderAll() {
@@ -2174,6 +2340,7 @@ function clearForm() {
   currentMemoryAudios = [];
   itemCustomFieldValuesDraft = {};
   itemCustomFieldsBoundCategory = "";
+  syncCategoryComboboxCommitted("");
   $("formTitle").textContent = "Adicionar item";
   $("cancelEditBtn").hidden = true;
   if (memoryAudioRecorderState.recording) stopMemoryAudioRecording();
@@ -2274,6 +2441,7 @@ function fillForm(item) {
   currentItemAttachments = (item.attachments || []).map(normalizeAttachment);
   currentMemoryAudios = (item.memoryAudios || []).map(normalizeMemoryAudio);
   itemCustomFieldValuesDraft = normalizeCustomFieldValues(item.customFieldValues);
+  syncCategoryComboboxCommitted(item.category || "");
   $("formTitle").textContent = "Editar item";
   $("cancelEditBtn").hidden = false;
   if (memoryAudioRecorderState.recording) stopMemoryAudioRecording();
@@ -3183,6 +3351,7 @@ async function initializePersistentApp() {
   $("homeCreateCategoryBtn")?.addEventListener("click", openCategoryCreator);
   $("categoryMediaForm").addEventListener("submit", async (e) => { e.preventDefault(); await saveCategoryMedia(); });
   setupCategoryCustomFieldsEditor();
+  setupCategoryCombobox();
 
   $("profilePhotoInput").addEventListener("change", async (e) => {
     const file = e.target.files?.[0];

@@ -8,11 +8,11 @@
   <meta name="apple-mobile-web-app-title" content="VM Life ARCHIVE" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
   <title>VM Life ARCHIVE</title>
-  <meta name="vm-asset-version" content="202608025" />
+  <meta name="vm-asset-version" content="202608026" />
   <link rel="manifest" href="manifest.webmanifest" />
   <link rel="apple-touch-icon" href="assets/icon-180.png" />
   <link rel="icon" href="assets/icon-192.png" />
-  <link rel="stylesheet" href="styles.css?v=202608025" />
+  <link rel="stylesheet" href="styles.css?v=202608026" />
 </head>
 <body>
   <div id="appShell">
@@ -190,9 +190,14 @@
             <div class="section-number">02</div>
             <div class="form-section-content">
               <div class="form-section-head"><div><span class="panel-kicker form-kicker-compact">DADOS DO ITEM</span><h3>Informações principais</h3></div></div>
-              <label class="item-category-picker">Categoria
-                <input id="category" list="categoryList" autocomplete="off" />
-                <datalist id="categoryList"></datalist>
+              <label class="item-category-picker" for="category">Categoria
+                <div class="category-combobox">
+                  <input id="category" type="text" autocomplete="off" spellcheck="false" role="combobox" aria-expanded="false" aria-controls="categoryMenu" aria-autocomplete="list" placeholder="Selecione ou pesquise" />
+                  <button type="button" id="categoryPickerToggle" class="category-combobox-toggle" aria-label="Abrir lista de categorias" aria-controls="categoryMenu" aria-expanded="false">
+                    <span aria-hidden="true">▾</span>
+                  </button>
+                  <ul id="categoryMenu" class="category-combobox-menu" role="listbox" hidden></ul>
+                </div>
               </label>
               <!-- Nome interno preservado para cards/busca; não faz parte dos campos personalizados -->
               <input id="name" type="hidden" value="" />
