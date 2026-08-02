@@ -293,7 +293,7 @@ function renderCategoryCustomFieldsEditor() {
   const list = $("categoryCustomFieldsList");
   if (!list) return;
   if (!categoryDraftCustomFields.length) {
-    list.innerHTML = '<p class="category-custom-fields-empty">Nenhum campo personalizado ainda. Use “+ Adicionar campo” para começar.</p>';
+    list.innerHTML = "";
     return;
   }
   list.innerHTML = categoryDraftCustomFields.map((field, index) => {
