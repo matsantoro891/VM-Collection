@@ -3142,6 +3142,7 @@ async function initializePersistentApp() {
     $("categoryDialog").close();
   });
   $("createCategoryBtn")?.addEventListener("click", openCategoryCreator);
+  $("homeCreateCategoryBtn")?.addEventListener("click", openCategoryCreator);
   $("categoryMediaForm").addEventListener("submit", async (e) => { e.preventDefault(); await saveCategoryMedia(); });
   setupCategoryCustomFieldsEditor();
 

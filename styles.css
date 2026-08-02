@@ -68,6 +68,13 @@ svg{display:block;width:100%;height:100%}
 .section-title{display:flex;justify-content:space-between;align-items:end;gap:12px;margin:24px 2px 14px}
 .section-title h3{margin:0;font-family:Georgia,"Times New Roman",serif;font-size:2rem}
 .home-catalogs-title h3{font-size:1rem}
+.home-catalogs-title{margin-bottom:10px}
+.home-categories-actions{display:flex;justify-content:flex-start;margin:0 2px 12px}
+.home-create-category-btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:40px;padding:0 14px 0 12px;border:0;border-radius:999px;background:var(--navy);color:#fff;font-size:.84rem;font-weight:700;box-shadow:0 8px 18px rgba(7,17,31,.12);cursor:pointer}
+.home-create-category-btn:hover{background:var(--navy-2)}
+.home-create-category-btn:active{transform:translateY(1px)}
+.home-create-category-btn:focus-visible{outline:3px solid rgba(180,134,62,.28);outline-offset:2px}
+.home-create-category-plus{width:20px;height:20px;border-radius:50%;display:grid;place-items:center;background:rgba(255,255,255,.14);font-size:1.05rem;line-height:1;font-weight:700}
 .home-recent-title{align-items:flex-end;gap:10px}
 .home-recent-title h3{flex:1 1 auto;min-width:0;max-width:min(100%,14.5em);font-size:1rem;line-height:1.2}
 .home-recent-title .link-btn{flex:0 0 auto;white-space:nowrap}

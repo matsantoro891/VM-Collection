@@ -8,11 +8,11 @@
   <meta name="apple-mobile-web-app-title" content="VM Life ARCHIVE" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
   <title>VM Life ARCHIVE</title>
-  <meta name="vm-asset-version" content="202608021" />
+  <meta name="vm-asset-version" content="202608022" />
   <link rel="manifest" href="manifest.webmanifest" />
   <link rel="apple-touch-icon" href="assets/icon-180.png" />
   <link rel="icon" href="assets/icon-192.png" />
-  <link rel="stylesheet" href="styles.css?v=202608021" />
+  <link rel="stylesheet" href="styles.css?v=202608022" />
 </head>
 <body>
   <div id="appShell">
@@ -48,11 +48,19 @@
           </button>
         </div>
 
-        <div class="section-title with-action home-catalogs-title">
-          <h3>Seus catálogos</h3>
-          <button class="link-btn" data-go="categoriesView" type="button">mais... <span>›</span></button>
+        <div class="home-categories-block">
+          <div class="section-title with-action home-catalogs-title">
+            <h3>Suas categorias</h3>
+            <button class="link-btn" data-go="categoriesView" type="button">mais... <span>›</span></button>
+          </div>
+          <div class="home-categories-actions">
+            <button type="button" id="homeCreateCategoryBtn" class="home-create-category-btn" aria-label="Criar categoria">
+              <span class="home-create-category-plus" aria-hidden="true">+</span>
+              <span>Criar categoria</span>
+            </button>
+          </div>
+          <div id="homeCategoryCards" class="home-categories-grid" aria-live="polite"></div>
         </div>
-        <div id="homeCategoryCards" class="home-categories-grid" aria-live="polite"></div>
 
         <div class="section-title with-action home-recent-title">
           <h3>Últimos itens adicionados</h3>
