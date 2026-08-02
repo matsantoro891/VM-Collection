@@ -440,21 +440,37 @@ function buildItemCustomFieldInputHtml(field, value) {
   return `<label>${label}<input id="${safeId}" data-custom-field-id="${escapeHtml(field.id)}" type="text" value="${current}" maxlength="200" /></label>`;
 }
 
+function deriveItemNameFromCustomFields(categoryName, customValues = {}) {
+  const fields = getActiveCustomFieldsForCategoryName(categoryName);
+  for (const field of fields) {
+    const value = String(customValues[field.id] || "").trim();
+    if (value) return value.slice(0, 160);
+  }
+  return "";
+}
+
 function renderItemCustomFields(categoryName, { announce = false } = {}) {
   const mount = $("itemCustomFieldsMount");
   if (!mount) return;
-  const fields = getActiveCustomFieldsForCategoryName(categoryName);
-  itemCustomFieldsBoundCategory = String(categoryName || "").trim();
+  const trimmed = String(categoryName || "").trim();
+  const fields = getActiveCustomFieldsForCategoryName(trimmed);
+  itemCustomFieldsBoundCategory = trimmed;
+  mount.classList.toggle("is-empty", !fields.length);
   if (!fields.length) {
-    mount.innerHTML = "";
-    mount.hidden = true;
+    if (!trimmed) {
+      mount.innerHTML = '<p class="item-custom-fields-empty">Selecione uma categoria para carregar os campos principais.</p>';
+    } else {
+      const category = getCategoryRecordByName(trimmed);
+      const configureBtn = category?.id
+        ? `<button type="button" class="text-action item-configure-fields-btn" data-configure-category-fields="${escapeHtml(category.id)}">Configurar campos</button>`
+        : "";
+      mount.innerHTML = `<div class="item-custom-fields-empty-wrap"><p class="item-custom-fields-empty">Esta categoria ainda não possui campos principais.</p>${configureBtn}</div>`;
+    }
+    mount.hidden = false;
     return;
   }
   mount.hidden = false;
   mount.innerHTML = fields.map((field) => buildItemCustomFieldInputHtml(field, itemCustomFieldValuesDraft[field.id] || "")).join("");
-  if (announce) {
-    // no toast system; keep silent besides DOM update
-  }
 }
 
 function handleItemCategoryChange(nextCategoryName, { force = false } = {}) {
@@ -510,6 +526,12 @@ function setupCategoryCustomFieldsEditor() {
   });
   $("category")?.addEventListener("blur", () => {
     handleItemCategoryChange($("category")?.value || "");
+  });
+  $("itemCustomFieldsMount")?.addEventListener("click", (e) => {
+    const btn = e.target.closest("[data-configure-category-fields]");
+    if (!btn) return;
+    const categoryId = btn.getAttribute("data-configure-category-fields");
+    if (categoryId) openCategoryEditor(categoryId);
   });
 }
 
@@ -1720,6 +1742,11 @@ async function saveCategoryMedia() {
   if ($("deleteCategoryBtn")) $("deleteCategoryBtn").hidden = true;
   $("categoryDialog")?.close();
 
+  if ($("addView")?.classList.contains("active")) {
+    const selectedCategory = $("category")?.value || "";
+    if (selectedCategory) handleItemCategoryChange(selectedCategory, { force: true });
+  }
+
   const returnCategoryId = resume?.categoryId || savedCategoryId;
   if (returnCategoryId && categories.some((c) => c.id === returnCategoryId)) {
     categoryDetailState.resumeAfterEdit = null;
@@ -2210,7 +2237,9 @@ function readForm() {
     createdAt: existing?.createdAt || new Date().toISOString()
   };
   ITEM_FORM_TEXT_FIELDS.forEach((id) => {
-    payload[id] = $(id)?.value?.trim?.() ?? $(id)?.value ?? "";
+    if (id === "name") return;
+    if ($(id)) payload[id] = $(id).value?.trim?.() ?? $(id).value ?? "";
+    else payload[id] = existing?.[id] ?? "";
   });
   // Preserva campos de memória ocultos da UI (legado) caso o input não exista no DOM
   ["relatedPerson", "relatedPlace", "relatedEvent", "storageLocation", "eventDate", "connectedItems"].forEach((field) => {
@@ -2224,6 +2253,11 @@ function readForm() {
     ...(existing?.customFieldValues || {}),
     ...customValues
   });
+  const categoryName = payload.category || existing?.category || "";
+  const existingName = String(existing?.name || "").trim();
+  const hiddenName = String($("name")?.value || "").trim();
+  payload.name = existingName || hiddenName || deriveItemNameFromCustomFields(categoryName, payload.customFieldValues);
+  if ($("name")) $("name").value = payload.name;
   return normalizeItem(payload);
 }
 
@@ -3058,7 +3092,11 @@ async function initializePersistentApp() {
   $("itemForm").addEventListener("submit", async (e) => {
     e.preventDefault();
     const item = readForm();
-    if (!item.name) return alert("Informe o nome do item.");
+    if (!item.category) return alert("Selecione uma categoria para o item.");
+    if (!getActiveCustomFieldsForCategoryName(item.category).length) {
+      return alert("Esta categoria ainda não possui campos principais. Configure os campos da categoria antes de salvar o item.");
+    }
+    if (!item.name) return alert("Preencha ao menos um dos campos principais.");
     const idx = items.findIndex((i) => i.id === item.id);
     const resume = itemDetailState.resumeAfterEdit;
     if (idx >= 0) items[idx] = item; else items.unshift(item);

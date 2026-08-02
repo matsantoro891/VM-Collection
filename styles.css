@@ -646,8 +646,12 @@ dialog::backdrop{background:rgba(8,18,34,.63);backdrop-filter:blur(5px)}
 .category-custom-field-row label{display:flex;flex-direction:column}
 .custom-field-options-wrap{margin-top:10px}
 .custom-field-inactive-badge{display:inline-flex;align-items:center;padding:3px 10px;border-radius:999px;background:rgba(7,17,31,.08);color:var(--muted);font-size:.72rem;font-weight:700;letter-spacing:.04em;text-transform:uppercase}
-.item-custom-fields-mount{margin-top:14px;padding-top:14px;border-top:1px solid var(--line)}
-.item-custom-fields-mount[hidden]{display:none !important}
+.item-category-picker{display:flex;flex-direction:column;margin:0 0 14px;max-width:100%}
+.item-custom-fields-mount{margin-top:0;padding-top:0;border-top:0}
+.item-custom-fields-mount.is-empty{display:block}
+.item-custom-fields-empty-wrap{display:flex;flex-direction:column;align-items:flex-start;gap:8px;padding:4px 0 2px}
+.item-custom-fields-empty{margin:0;color:var(--muted);font-size:.9rem;line-height:1.4;font-weight:550}
+.item-configure-fields-btn{padding:0;min-height:auto}
 .dialog-title-row{display:flex;justify-content:space-between;align-items:flex-start;gap:14px;margin-bottom:18px}
 .dialog-title-row h3{margin:4px 0 0;font:700 1.7rem Georgia,"Times New Roman",serif}
 .category-editor-grid{display:grid;grid-template-columns:250px 1fr;gap:20px}

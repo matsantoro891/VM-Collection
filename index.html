@@ -8,11 +8,11 @@
   <meta name="apple-mobile-web-app-title" content="VM Life ARCHIVE" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
   <title>VM Life ARCHIVE</title>
-  <meta name="vm-asset-version" content="202608023" />
+  <meta name="vm-asset-version" content="202608024" />
   <link rel="manifest" href="manifest.webmanifest" />
   <link rel="apple-touch-icon" href="assets/icon-180.png" />
   <link rel="icon" href="assets/icon-192.png" />
-  <link rel="stylesheet" href="styles.css?v=202608023" />
+  <link rel="stylesheet" href="styles.css?v=202608024" />
 </head>
 <body>
   <div id="appShell">
@@ -191,20 +191,13 @@
             <div class="section-number">02</div>
             <div class="form-section-content">
               <div class="form-section-head"><div><span class="panel-kicker form-kicker-compact">DADOS DO ITEM</span><h3>Informações principais</h3></div></div>
-              <div class="form-grid">
-                <label class="field-wide">Nome do item<input id="name" required /></label>
-                <label>Categoria<input id="category" list="categoryList" /><datalist id="categoryList"></datalist></label>
-                <label>Marca/Produtor<input id="brand" /></label>
-                <label>Data
-                  <div class="date-field-wrap">
-                    <input id="acquiredAtPrimary" type="date" aria-label="Data" />
-                    <span class="date-field-icon" aria-hidden="true"></span>
-                  </div>
-                </label>
-                <label class="field-wide">Descrição<textarea id="description" rows="4"></textarea></label>
-                <label class="field-wide">Observação<textarea id="tags" rows="3"></textarea></label>
-              </div>
-              <div id="itemCustomFieldsMount" class="form-grid item-custom-fields-mount" hidden></div>
+              <label class="item-category-picker">Categoria
+                <input id="category" list="categoryList" autocomplete="off" />
+                <datalist id="categoryList"></datalist>
+              </label>
+              <!-- Nome interno preservado para cards/busca; não faz parte dos campos personalizados -->
+              <input id="name" type="hidden" value="" />
+              <div id="itemCustomFieldsMount" class="form-grid item-custom-fields-mount" aria-live="polite"></div>
             </div>
           </section>
 
