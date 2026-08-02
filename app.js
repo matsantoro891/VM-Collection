@@ -18,6 +18,9 @@ let currentItemAttachments = [];
 let currentMemoryAudios = [];
 let categoryDraftImage = "";
 let categoryDraftAttachments = [];
+let categoryDraftCustomFields = [];
+let itemCustomFieldValuesDraft = {};
+let itemCustomFieldsBoundCategory = "";
 let editingCategoryId = "";
 let activeCategoryDetailId = "";
 const categoryDetailState = {
@@ -147,10 +150,65 @@ function normalizeItem(raw = {}) {
     photo: photos[0] || String(raw.photo || ""),
     video: String(raw.video || ""),
     attachments: Array.isArray(raw.attachments) ? raw.attachments.map(normalizeAttachment) : [],
+    customFieldValues: normalizeCustomFieldValues(raw.customFieldValues),
     updatedAt: raw.updatedAt || new Date().toISOString(), createdAt: raw.createdAt || new Date().toISOString()
   };
   if (Object.prototype.hasOwnProperty.call(raw, "owned")) item.owned = !!raw.owned;
   return item;
+}
+
+const CUSTOM_FIELD_TYPES = [
+  { id: "text", label: "Texto curto" },
+  { id: "textarea", label: "Texto longo" },
+  { id: "number", label: "Número" },
+  { id: "date", label: "Data" },
+  { id: "select", label: "Seleção única" }
+];
+const CUSTOM_FIELD_TYPE_IDS = new Set(CUSTOM_FIELD_TYPES.map((entry) => entry.id));
+
+function normalizeCustomFieldOptions(raw) {
+  if (Array.isArray(raw)) {
+    return raw.map((option) => String(option || "").trim()).filter(Boolean);
+  }
+  return String(raw || "")
+    .split(/\r?\n|,/)
+    .map((option) => option.trim())
+    .filter(Boolean);
+}
+
+function normalizeCustomField(raw = {}, orderFallback = 0) {
+  const type = CUSTOM_FIELD_TYPE_IDS.has(raw.type) ? raw.type : "text";
+  const options = type === "select" ? normalizeCustomFieldOptions(raw.options) : [];
+  return {
+    id: raw.id || uid(),
+    label: String(raw.label || raw.name || "").trim(),
+    type,
+    order: Number.isFinite(Number(raw.order)) ? Number(raw.order) : orderFallback,
+    options,
+    active: raw.active !== false,
+    createdAt: raw.createdAt || new Date().toISOString()
+  };
+}
+
+function normalizeCustomFields(list) {
+  if (!Array.isArray(list)) return [];
+  return list
+    .map((field, index) => normalizeCustomField(field, index))
+    .sort((a, b) => a.order - b.order || String(a.label).localeCompare(String(b.label), "pt-BR"))
+    .map((field, index) => ({ ...field, order: index }));
+}
+
+function normalizeCustomFieldValues(raw) {
+  const source = raw && typeof raw === "object" && !Array.isArray(raw) ? raw : {};
+  const values = {};
+  Object.keys(source).forEach((key) => {
+    const id = String(key || "").trim();
+    if (!id) return;
+    const value = source[key];
+    if (value == null) return;
+    values[id] = String(value);
+  });
+  return values;
 }
 
 function categoryIdFromName(name) {
@@ -167,9 +225,312 @@ function normalizeCategory(raw = {}) {
     name,
     image: String(raw.image || ""),
     attachments: Array.isArray(raw.attachments) ? raw.attachments.map(normalizeAttachment) : [],
+    customFields: normalizeCustomFields(raw.customFields),
     createdAt: raw.createdAt || new Date().toISOString(),
     updatedAt: raw.updatedAt || new Date().toISOString()
   };
+}
+
+function getActiveCustomFieldsForCategoryName(categoryName) {
+  const category = getCategoryRecordByName(categoryName);
+  if (!category) return [];
+  return (category.customFields || []).filter((field) => field.active !== false);
+}
+
+function getAllCustomFieldsForCategoryName(categoryName) {
+  const category = getCategoryRecordByName(categoryName);
+  return category?.customFields || [];
+}
+
+function countItemsUsingCustomField(fieldId) {
+  if (!fieldId) return 0;
+  return items.filter((item) => String(item.customFieldValues?.[fieldId] ?? "").trim() !== "").length;
+}
+
+function formatCustomFieldDisplayValue(field, rawValue) {
+  const value = String(rawValue ?? "").trim();
+  if (!value) return "";
+  if (field?.type === "date") return formatItemDate(value) || value;
+  if (field?.type === "number") {
+    const num = Number(value);
+    return Number.isFinite(num) ? num.toLocaleString("pt-BR") : value;
+  }
+  return value;
+}
+
+function reindexCategoryDraftCustomFields() {
+  categoryDraftCustomFields = categoryDraftCustomFields.map((field, index) => ({
+    ...normalizeCustomField(field, index),
+    order: index
+  }));
+}
+
+function syncCategoryDraftCustomFieldsFromDom() {
+  const list = $("categoryCustomFieldsList");
+  if (!list) return;
+  const next = [];
+  list.querySelectorAll(".category-custom-field-row").forEach((row, index) => {
+    const id = row.dataset.fieldId || uid();
+    const label = row.querySelector(".custom-field-label-input")?.value?.trim() || "";
+    const type = row.querySelector(".custom-field-type-input")?.value || "text";
+    const optionsRaw = row.querySelector(".custom-field-options-input")?.value || "";
+    const active = row.dataset.active !== "false";
+    const createdAt = row.dataset.createdAt || new Date().toISOString();
+    next.push(normalizeCustomField({
+      id,
+      label,
+      type,
+      options: optionsRaw,
+      active,
+      createdAt,
+      order: index
+    }, index));
+  });
+  categoryDraftCustomFields = next;
+}
+
+function renderCategoryCustomFieldsEditor() {
+  const list = $("categoryCustomFieldsList");
+  if (!list) return;
+  if (!categoryDraftCustomFields.length) {
+    list.innerHTML = '<p class="category-custom-fields-empty">Nenhum campo personalizado ainda. Use “+ Adicionar campo” para começar.</p>';
+    return;
+  }
+  list.innerHTML = categoryDraftCustomFields.map((field, index) => {
+    const typeOptions = CUSTOM_FIELD_TYPES.map((type) => (
+      `<option value="${type.id}"${field.type === type.id ? " selected" : ""}>${escapeHtml(type.label)}</option>`
+    )).join("");
+    const optionsValue = (field.options || []).join("\n");
+    const inactiveBadge = field.active === false ? '<span class="custom-field-inactive-badge">Desativado</span>' : "";
+    const optionsBlock = field.type === "select"
+      ? `<label class="field-wide custom-field-options-wrap">Opções (uma por linha)<textarea class="custom-field-options-input" rows="3" placeholder="Opção A&#10;Opção B">${escapeHtml(optionsValue)}</textarea></label>`
+      : `<label class="field-wide custom-field-options-wrap" hidden>Opções (uma por linha)<textarea class="custom-field-options-input" rows="3" hidden>${escapeHtml(optionsValue)}</textarea></label>`;
+    const reactivateBtn = field.active === false
+      ? `<button type="button" class="text-action custom-field-reactivate-btn" data-index="${index}">Reativar</button>`
+      : "";
+    return `<article class="category-custom-field-row${field.active === false ? " is-inactive" : ""}" data-field-id="${escapeHtml(field.id)}" data-active="${field.active === false ? "false" : "true"}" data-created-at="${escapeHtml(field.createdAt || "")}">
+      <div class="custom-field-row-top">
+        <strong>Campo ${index + 1}</strong>
+        ${inactiveBadge}
+        <div class="custom-field-row-actions">
+          <button type="button" class="ghost-btn custom-field-move-up" data-index="${index}" aria-label="Mover para cima" ${index === 0 ? "disabled" : ""}>↑</button>
+          <button type="button" class="ghost-btn custom-field-move-down" data-index="${index}" aria-label="Mover para baixo" ${index === categoryDraftCustomFields.length - 1 ? "disabled" : ""}>↓</button>
+          ${reactivateBtn}
+          <button type="button" class="text-action custom-field-remove-btn" data-index="${index}">Excluir</button>
+        </div>
+      </div>
+      <div class="custom-field-row-grid">
+        <label>Nome do campo<input class="custom-field-label-input" value="${escapeHtml(field.label)}" maxlength="80" required /></label>
+        <label>Tipo<select class="custom-field-type-input">${typeOptions}</select></label>
+      </div>
+      ${optionsBlock}
+    </article>`;
+  }).join("");
+}
+
+function addCategoryCustomFieldDraft() {
+  syncCategoryDraftCustomFieldsFromDom();
+  categoryDraftCustomFields.push(normalizeCustomField({
+    label: "",
+    type: "text",
+    order: categoryDraftCustomFields.length,
+    active: true
+  }, categoryDraftCustomFields.length));
+  reindexCategoryDraftCustomFields();
+  renderCategoryCustomFieldsEditor();
+  const inputs = $("categoryCustomFieldsList")?.querySelectorAll(".custom-field-label-input");
+  const last = inputs?.[inputs.length - 1];
+  last?.focus();
+}
+
+function moveCategoryCustomFieldDraft(index, delta) {
+  syncCategoryDraftCustomFieldsFromDom();
+  const target = index + delta;
+  if (target < 0 || target >= categoryDraftCustomFields.length) return;
+  const copy = [...categoryDraftCustomFields];
+  const [row] = copy.splice(index, 1);
+  copy.splice(target, 0, row);
+  categoryDraftCustomFields = copy;
+  reindexCategoryDraftCustomFields();
+  renderCategoryCustomFieldsEditor();
+}
+
+function reactivateCategoryCustomFieldDraft(index) {
+  syncCategoryDraftCustomFieldsFromDom();
+  if (!categoryDraftCustomFields[index]) return;
+  categoryDraftCustomFields[index] = { ...categoryDraftCustomFields[index], active: true };
+  renderCategoryCustomFieldsEditor();
+}
+
+function removeCategoryCustomFieldDraft(index) {
+  syncCategoryDraftCustomFieldsFromDom();
+  const field = categoryDraftCustomFields[index];
+  if (!field) return;
+  const usage = countItemsUsingCustomField(field.id);
+  if (usage > 0) {
+    const ok = confirm(`O campo “${field.label || "sem nome"}” está preenchido em ${usage} item(ns).\n\nEm vez de excluir, ele será desativado: deixará de aparecer em novos cadastros, mas os valores antigos serão preservados no backup e na visualização.\n\nDeseja desativar este campo?`);
+    if (!ok) return;
+    categoryDraftCustomFields[index] = { ...field, active: false };
+  } else {
+    const ok = confirm(`Excluir o campo “${field.label || "sem nome"}”? Esta ação não poderá ser desfeita.`);
+    if (!ok) return;
+    categoryDraftCustomFields.splice(index, 1);
+  }
+  reindexCategoryDraftCustomFields();
+  renderCategoryCustomFieldsEditor();
+}
+
+function validateCategoryDraftCustomFields() {
+  syncCategoryDraftCustomFieldsFromDom();
+  reindexCategoryDraftCustomFields();
+  const labels = new Map();
+  for (const field of categoryDraftCustomFields) {
+    if (!field.label) {
+      alert("Informe o nome de todos os campos personalizados ou remova os campos vazios.");
+      return false;
+    }
+    const key = field.label.toLowerCase();
+    if (labels.has(key)) {
+      alert(`Já existe um campo com o nome “${field.label}”. Use nomes diferentes.`);
+      return false;
+    }
+    labels.set(key, true);
+    if (field.type === "select" && field.active !== false && !(field.options || []).length) {
+      alert(`O campo “${field.label}” é de seleção única e precisa de ao menos uma opção.`);
+      return false;
+    }
+  }
+  return true;
+}
+
+function collectItemCustomFieldValuesFromDom() {
+  const mount = $("itemCustomFieldsMount");
+  const values = { ...itemCustomFieldValuesDraft };
+  if (!mount) return values;
+  mount.querySelectorAll("[data-custom-field-id]").forEach((input) => {
+    const id = input.getAttribute("data-custom-field-id");
+    if (!id) return;
+    values[id] = String(input.value ?? "");
+  });
+  itemCustomFieldValuesDraft = normalizeCustomFieldValues(values);
+  return itemCustomFieldValuesDraft;
+}
+
+function buildItemCustomFieldInputHtml(field, value) {
+  const safeId = `customField_${String(field.id).replace(/[^a-zA-Z0-9_-]/g, "_")}`;
+  const label = escapeHtml(field.label || "Campo");
+  const current = escapeHtml(String(value ?? ""));
+  if (field.type === "textarea") {
+    return `<label class="field-wide">${label}<textarea id="${safeId}" data-custom-field-id="${escapeHtml(field.id)}" rows="3">${current}</textarea></label>`;
+  }
+  if (field.type === "number") {
+    return `<label>${label}<input id="${safeId}" data-custom-field-id="${escapeHtml(field.id)}" type="number" step="any" value="${current}" /></label>`;
+  }
+  if (field.type === "date") {
+    return `<label>${label}<div class="date-field-wrap"><input id="${safeId}" data-custom-field-id="${escapeHtml(field.id)}" type="date" value="${current}" aria-label="${label}" /><span class="date-field-icon" aria-hidden="true"></span></div></label>`;
+  }
+  if (field.type === "select") {
+    const options = [`<option value=""></option>`]
+      .concat((field.options || []).map((option) => {
+        const selected = String(value ?? "") === option ? " selected" : "";
+        return `<option value="${escapeHtml(option)}"${selected}>${escapeHtml(option)}</option>`;
+      }));
+    return `<label>${label}<select id="${safeId}" data-custom-field-id="${escapeHtml(field.id)}">${options.join("")}</select></label>`;
+  }
+  return `<label>${label}<input id="${safeId}" data-custom-field-id="${escapeHtml(field.id)}" type="text" value="${current}" maxlength="200" /></label>`;
+}
+
+function renderItemCustomFields(categoryName, { announce = false } = {}) {
+  const mount = $("itemCustomFieldsMount");
+  if (!mount) return;
+  const fields = getActiveCustomFieldsForCategoryName(categoryName);
+  itemCustomFieldsBoundCategory = String(categoryName || "").trim();
+  if (!fields.length) {
+    mount.innerHTML = "";
+    mount.hidden = true;
+    return;
+  }
+  mount.hidden = false;
+  mount.innerHTML = fields.map((field) => buildItemCustomFieldInputHtml(field, itemCustomFieldValuesDraft[field.id] || "")).join("");
+  if (announce) {
+    // no toast system; keep silent besides DOM update
+  }
+}
+
+function handleItemCategoryChange(nextCategoryName, { force = false } = {}) {
+  const next = String(nextCategoryName || "").trim();
+  collectItemCustomFieldValuesFromDom();
+  const previous = itemCustomFieldsBoundCategory;
+  if (!force && previous.toLowerCase() === next.toLowerCase()) return true;
+  if (!force && previous && previous.toLowerCase() !== next.toLowerCase()) {
+    const previousFields = getActiveCustomFieldsForCategoryName(previous);
+    const hasFilled = previousFields.some((field) => String(itemCustomFieldValuesDraft[field.id] || "").trim() !== "");
+    if (hasFilled) {
+      const ok = confirm("Os campos personalizados exibidos serão alterados conforme a nova categoria.\n\nOs valores já preenchidos serão preservados internamente e poderão reaparecer se você voltar à categoria anterior.\n\nDeseja continuar?");
+      if (!ok) {
+        if ($("category")) $("category").value = previous;
+        return false;
+      }
+    }
+  }
+  renderItemCustomFields(next);
+  return true;
+}
+
+function setupCategoryCustomFieldsEditor() {
+  $("addCategoryCustomFieldBtn")?.addEventListener("click", () => addCategoryCustomFieldDraft());
+  $("categoryCustomFieldsList")?.addEventListener("click", (e) => {
+    const removeBtn = e.target.closest(".custom-field-remove-btn");
+    if (removeBtn) {
+      removeCategoryCustomFieldDraft(Number(removeBtn.dataset.index));
+      return;
+    }
+    const upBtn = e.target.closest(".custom-field-move-up");
+    if (upBtn) {
+      moveCategoryCustomFieldDraft(Number(upBtn.dataset.index), -1);
+      return;
+    }
+    const downBtn = e.target.closest(".custom-field-move-down");
+    if (downBtn) {
+      moveCategoryCustomFieldDraft(Number(downBtn.dataset.index), 1);
+      return;
+    }
+    const reactivateBtn = e.target.closest(".custom-field-reactivate-btn");
+    if (reactivateBtn) {
+      reactivateCategoryCustomFieldDraft(Number(reactivateBtn.dataset.index));
+    }
+  });
+  $("categoryCustomFieldsList")?.addEventListener("change", (e) => {
+    if (!e.target.classList.contains("custom-field-type-input")) return;
+    syncCategoryDraftCustomFieldsFromDom();
+    renderCategoryCustomFieldsEditor();
+  });
+  $("category")?.addEventListener("change", () => {
+    handleItemCategoryChange($("category")?.value || "");
+  });
+  $("category")?.addEventListener("blur", () => {
+    handleItemCategoryChange($("category")?.value || "");
+  });
+}
+
+function buildCustomFieldDetailRows(item) {
+  const defined = getAllCustomFieldsForCategoryName(item.category);
+  const values = item.customFieldValues || {};
+  const rows = [];
+  const seen = new Set();
+  defined.forEach((field) => {
+    const display = formatCustomFieldDisplayValue(field, values[field.id]);
+    if (!display) return;
+    seen.add(field.id);
+    rows.push(detailTableRow(field.label || "Campo", display));
+  });
+  Object.keys(values).forEach((fieldId) => {
+    if (seen.has(fieldId)) return;
+    const text = String(values[fieldId] || "").trim();
+    if (!text) return;
+    rows.push(detailTableRow("Campo personalizado", text));
+  });
+  return rows.filter(Boolean);
 }
 
 async function loadItems() {
@@ -1098,6 +1459,7 @@ function openCategoryCreator() {
   editingCategoryId = "";
   categoryDraftImage = "";
   categoryDraftAttachments = [];
+  categoryDraftCustomFields = [];
   categoryDetailState.resumeAfterEdit = null;
   if ($("categoryEditingId")) $("categoryEditingId").value = "";
   if ($("categoryNameInput")) $("categoryNameInput").value = "";
@@ -1105,6 +1467,7 @@ function openCategoryCreator() {
   if ($("deleteCategoryBtn")) $("deleteCategoryBtn").hidden = true;
   renderCategoryImagePreview();
   renderCategoryAttachmentList();
+  renderCategoryCustomFieldsEditor();
   $("categoryDialog")?.showModal();
 }
 
@@ -1114,12 +1477,14 @@ function openCategoryEditor(id) {
   editingCategoryId = category.id;
   categoryDraftImage = category.image || "";
   categoryDraftAttachments = (category.attachments || []).map(normalizeAttachment);
+  categoryDraftCustomFields = normalizeCustomFields(category.customFields);
   if ($("categoryEditingId")) $("categoryEditingId").value = category.id;
   if ($("categoryNameInput")) $("categoryNameInput").value = category.name || "";
   if ($("categoryDialogTitle")) $("categoryDialogTitle").textContent = "Editar categoria";
   if ($("deleteCategoryBtn")) $("deleteCategoryBtn").hidden = false;
   renderCategoryImagePreview();
   renderCategoryAttachmentList();
+  renderCategoryCustomFieldsEditor();
   $("categoryDialog")?.showModal();
 }
 
@@ -1288,6 +1653,7 @@ function addItemFromCategory(categoryId) {
   closeCategoryDetailDialog();
   clearForm();
   $("category").value = categoryName;
+  handleItemCategoryChange(categoryName, { force: true });
   showView("addView");
 }
 
@@ -1303,9 +1669,12 @@ async function saveCategoryMedia() {
   if (!name) return alert("Informe o nome da categoria.");
   const duplicate = categories.find((c) => c.name.toLowerCase() === name.toLowerCase() && c.id !== editingCategoryId);
   if (duplicate) return alert("Já existe uma categoria com este nome.");
+  if (!validateCategoryDraftCustomFields()) return;
 
   const resume = categoryDetailState.resumeAfterEdit;
   const savedCategoryId = editingCategoryId;
+  const customFields = normalizeCustomFields(categoryDraftCustomFields);
+  let renamedItems = false;
 
   if (editingCategoryId) {
     const index = categories.findIndex((c) => c.id === editingCategoryId);
@@ -1316,19 +1685,21 @@ async function saveCategoryMedia() {
       name,
       image: categoryDraftImage,
       attachments: categoryDraftAttachments,
+      customFields,
       updatedAt: new Date().toISOString()
     });
     if (previousName !== name) {
       items.forEach((item) => {
         if (item.category === previousName) item.category = name;
       });
-      await saveItems();
+      renamedItems = true;
     }
   } else {
     const created = normalizeCategory({
       name,
       image: categoryDraftImage,
       attachments: categoryDraftAttachments,
+      customFields,
       updatedAt: new Date().toISOString()
     });
     categories.push(created);
@@ -1336,7 +1707,8 @@ async function saveCategoryMedia() {
   }
 
   categories.sort((a, b) => a.name.localeCompare(b.name, "pt-BR"));
-  await VMStorage.replaceAll("categories", categories);
+  if (renamedItems) await saveItems();
+  else await VMStorage.replaceAll("categories", categories);
   renderCategories();
   renderHome();
   updateCategoryControls();
@@ -1344,6 +1716,7 @@ async function saveCategoryMedia() {
   renderReports();
   renderStatsDashboard();
   editingCategoryId = "";
+  categoryDraftCustomFields = [];
   if ($("deleteCategoryBtn")) $("deleteCategoryBtn").hidden = true;
   $("categoryDialog")?.close();
 
@@ -1772,6 +2145,8 @@ function clearForm() {
   currentVideo = "";
   currentItemAttachments = [];
   currentMemoryAudios = [];
+  itemCustomFieldValuesDraft = {};
+  itemCustomFieldsBoundCategory = "";
   $("formTitle").textContent = "Adicionar item";
   $("cancelEditBtn").hidden = true;
   if (memoryAudioRecorderState.recording) stopMemoryAudioRecording();
@@ -1779,6 +2154,7 @@ function clearForm() {
   renderMediaSection();
   renderItemAttachmentList();
   renderMemoryAudioList();
+  renderItemCustomFields("");
 }
 
 const LEGACY_ITEM_FIELDS = ["subcategory", "condition", "serial", "notes", "freeMemoryText", "faceValue", "year", "country", "material"];
@@ -1843,6 +2219,11 @@ function readForm() {
   LEGACY_ITEM_FIELDS.forEach((field) => {
     payload[field] = existing?.[field] ?? "";
   });
+  const customValues = collectItemCustomFieldValuesFromDom();
+  payload.customFieldValues = normalizeCustomFieldValues({
+    ...(existing?.customFieldValues || {}),
+    ...customValues
+  });
   return normalizeItem(payload);
 }
 
@@ -1858,6 +2239,7 @@ function fillForm(item) {
   currentVideo = item.video || "";
   currentItemAttachments = (item.attachments || []).map(normalizeAttachment);
   currentMemoryAudios = (item.memoryAudios || []).map(normalizeMemoryAudio);
+  itemCustomFieldValuesDraft = normalizeCustomFieldValues(item.customFieldValues);
   $("formTitle").textContent = "Editar item";
   $("cancelEditBtn").hidden = false;
   if (memoryAudioRecorderState.recording) stopMemoryAudioRecording();
@@ -1865,6 +2247,7 @@ function fillForm(item) {
   renderMediaSection();
   renderItemAttachmentList();
   renderMemoryAudioList();
+  handleItemCategoryChange(item.category || "", { force: true });
   showView("addView");
 }
 
@@ -1952,7 +2335,8 @@ function buildDetailHtml(item, { categoryMode = false } = {}) {
     detailTableRow("Série / código", item.serial),
     detailTableRow("Tags", item.tags),
     detailTableRow("Cadastrado em", formatItemDateTime(item.createdAt)),
-    detailTableRow("Atualizado em", formatItemDateTime(item.updatedAt))
+    detailTableRow("Atualizado em", formatItemDateTime(item.updatedAt)),
+    ...buildCustomFieldDetailRows(item)
   ].filter(Boolean).join("");
   const tableHtml = tableRows ? `<section class="detail-album-section"><h3>Dados técnicos</h3><div class="detail-table">${tableRows}</div></section>` : "";
   const notesHtml = item.notes
@@ -2167,6 +2551,21 @@ function buildPdfItemDetailLines(item) {
   pushText("Marca/Produtor", item.brand);
   if (item.acquiredAt) pushText("Data de aquisição", formatItemDate(item.acquiredAt));
   pushText("Descrição", item.description);
+  const definedFields = getAllCustomFieldsForCategoryName(item.category);
+  const values = item.customFieldValues || {};
+  const seen = new Set();
+  definedFields.forEach((field) => {
+    const display = formatCustomFieldDisplayValue(field, values[field.id]);
+    if (!display) return;
+    seen.add(field.id);
+    pushText(field.label || "Campo", display);
+  });
+  Object.keys(values).forEach((fieldId) => {
+    if (seen.has(fieldId)) return;
+    const text = String(values[fieldId] || "").trim();
+    if (!text) return;
+    pushText("Campo personalizado", text);
+  });
   pushText("Local de armazenamento", item.storageLocation);
   pushText("Local de aquisição", item.acquiredPlace);
   pushText("História", item.memory);
@@ -2494,7 +2893,7 @@ function updateBackupStatus(message, isError = false) {
 function buildCompleteBackup() {
   return {
     app: APP_DISPLAY_NAME,
-    version: 5,
+    version: 6,
     storage: "IndexedDB + DataURL",
     exportedAt: new Date().toISOString(),
     profile: normalizeProfile(profile),
@@ -2744,6 +3143,7 @@ async function initializePersistentApp() {
   });
   $("createCategoryBtn")?.addEventListener("click", openCategoryCreator);
   $("categoryMediaForm").addEventListener("submit", async (e) => { e.preventDefault(); await saveCategoryMedia(); });
+  setupCategoryCustomFieldsEditor();
 
   $("profilePhotoInput").addEventListener("change", async (e) => {
     const file = e.target.files?.[0];

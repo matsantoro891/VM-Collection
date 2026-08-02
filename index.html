@@ -8,11 +8,11 @@
   <meta name="apple-mobile-web-app-title" content="VM Life ARCHIVE" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
   <title>VM Life ARCHIVE</title>
-  <meta name="vm-asset-version" content="202607261" />
+  <meta name="vm-asset-version" content="202608021" />
   <link rel="manifest" href="manifest.webmanifest" />
   <link rel="apple-touch-icon" href="assets/icon-180.png" />
   <link rel="icon" href="assets/icon-192.png" />
-  <link rel="stylesheet" href="styles.css?v=202607261" />
+  <link rel="stylesheet" href="styles.css?v=202608021" />
 </head>
 <body>
   <div id="appShell">
@@ -196,6 +196,7 @@
                 <label class="field-wide">Descrição<textarea id="description" rows="4"></textarea></label>
                 <label class="field-wide">Observação<textarea id="tags" rows="3"></textarea></label>
               </div>
+              <div id="itemCustomFieldsMount" class="form-grid item-custom-fields-mount" hidden></div>
             </div>
           </section>
 
@@ -393,6 +394,16 @@
       </div>
       <input id="categoryEditingId" type="hidden" />
       <label class="field-wide">Nome da categoria<input id="categoryNameInput" required /></label>
+      <section class="category-custom-fields-panel" aria-labelledby="categoryCustomFieldsHeading">
+        <div class="category-custom-fields-head">
+          <div>
+            <span class="panel-kicker">INFORMAÇÕES PRINCIPAIS</span>
+            <p id="categoryCustomFieldsHeading">Crie os campos das informações principais desta categoria</p>
+          </div>
+          <button type="button" class="secondary-btn" id="addCategoryCustomFieldBtn">+ Adicionar campo</button>
+        </div>
+        <div id="categoryCustomFieldsList" class="category-custom-fields-list" aria-live="polite"></div>
+      </section>
       <div class="category-editor-grid">
         <div>
           <div id="categoryImagePreview" class="category-image-preview"><span>Sem capa</span></div>
