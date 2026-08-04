@@ -26,7 +26,8 @@ let activeCategoryDetailId = "";
 const categoryDetailState = {
   isOpen: false,
   resumeAfterEdit: null,
-  pendingDeleteId: null
+  pendingDeleteId: null,
+  searchQuery: ""
 };
 let gridMode = "grid";
 let catalogAppliedFilters = { terms: [], categoryId: "", classification: "all", dateFrom: "", dateTo: "" };
@@ -1073,15 +1074,15 @@ function itemBadges(item) {
 function itemCard(item) {
   const photos = itemPhotosFromRaw(item);
   const img = photos.length
-    ? `<button type="button" class="item-photo-open" onclick="event.stopPropagation();openPhotoViewerForItem('${item.id}', 0, this)" aria-label="Ampliar fotos de ${escapeHtml(item.name || "item")}"><img src="${item.photo}" alt="${escapeHtml(item.name)}" onerror="this.hidden=true;this.nextElementSibling.hidden=false"><span hidden>Imagem indisponível</span></button>`
+    ? `<button type="button" class="item-photo-open" onclick="event.stopPropagation();openPhotoViewerForItem('${item.id}', 0, this)" aria-label="Ampliar fotos de ${escapeHtml(item.name || "item")}"><img src="${item.photo || photos[0]}" alt="${escapeHtml(item.name)}" onerror="this.closest('.item-photo-open')?.classList.add('is-error')"><span class="photo-fallback-label">Imagem indisponível</span></button>`
     : "<span>Sem foto</span>";
-  return `<article class="item-card" onclick="openDetail('${item.id}')"><div class="item-photo">${img}${itemBadges(item)}</div><div class="item-body"><h4>${escapeHtml(item.name || "Item sem nome")}</h4><div class="meta-line"><span>${escapeHtml(item.category || "Sem categoria")}</span><span>${money(item.estimatedValue)}</span></div><div class="meta-line"><span>${escapeHtml(item.year || "")}</span><span>${escapeHtml(item.condition || "")}</span></div></div></article>`;
+  return `<article class="item-card" onclick="openDetail('${item.id}')"><div class="item-photo">${img}${itemBadges(item)}</div><div class="item-body"><h4>${escapeHtml(item.name || "Item sem nome")}</h4><div class="meta-line"><span>${escapeHtml(item.category || "Sem categoria")}</span><span>${escapeHtml(item.year || "")}</span></div></div></article>`;
 }
 
 function recentCard(item) {
   const photos = itemPhotosFromRaw(item);
   const img = photos.length
-    ? `<button type="button" class="recent-photo-open" onclick="event.stopPropagation();openPhotoViewerForItem('${item.id}', 0, this)" aria-label="Ampliar fotos de ${escapeHtml(item.name || "item")}"><img src="${item.photo}" alt="${escapeHtml(item.name)}" onerror="this.hidden=true;this.nextElementSibling.hidden=false"><span hidden>Imagem indisponível</span></button>`
+    ? `<button type="button" class="recent-photo-open" onclick="event.stopPropagation();openPhotoViewerForItem('${item.id}', 0, this)" aria-label="Ampliar fotos de ${escapeHtml(item.name || "item")}"><img src="${item.photo || photos[0]}" alt="${escapeHtml(item.name)}" onerror="this.closest('.recent-photo-open')?.classList.add('is-error')"><span class="photo-fallback-label">Imagem indisponível</span></button>`
     : "<span>Sem foto</span>";
   const sub = [item.year, item.category].filter(Boolean).join(" • ");
   return `<article class="recent-card" onclick="openDetail('${item.id}')"><div class="recent-photo">${img}</div><div class="recent-body"><h4>${escapeHtml(item.name || "Item sem nome")}</h4><p>${escapeHtml(sub || item.category || "Sem categoria")}</p></div></article>`;
@@ -1229,13 +1230,46 @@ function renderTimelineView(list) {
   }).join("");
 }
 
+function itemMatchesNameSearch(item, query) {
+  const normalized = normalizeSearchInput(query);
+  if (!normalized) return true;
+  const terms = normalized.split(" ").filter(Boolean);
+  const haystack = normalizeSearchInput(item?.name || "");
+  return terms.every((term) => haystack.includes(term));
+}
+
+function getCategoryDetailLinkedItems(categoryId) {
+  return items.filter((item) => itemBelongsToCategory(item, categoryId));
+}
+
+function getCategoryDetailVisibleItems(categoryId) {
+  return getCategoryDetailLinkedItems(categoryId)
+    .filter((item) => itemMatchesNameSearch(item, categoryDetailState.searchQuery));
+}
+
+function updateCategoryDetailSearchClear() {
+  const clearBtn = $("categoryDetailSearchClear");
+  if (clearBtn) clearBtn.hidden = !String(categoryDetailState.searchQuery || "").trim();
+}
+
+function applyCategoryDetailSearchFilter() {
+  if (!activeCategoryDetailId) return;
+  const visible = getCategoryDetailVisibleItems(activeCategoryDetailId);
+  if ($("categoryDetailCount")) $("categoryDetailCount").textContent = formatItemCount(visible.length);
+  renderCategoryItemsView(visible);
+  updateCategoryDetailSearchClear();
+}
+
 function renderCategoryItemsView(linked) {
   const container = $("categoryDetailItems");
   if (!container) return;
   const mode = getCategoryViewMode();
   container.className = `category-detail-items category-view-${mode}${mode === "lista" ? " cards-grid" : ""}`;
+  const query = String(categoryDetailState.searchQuery || "").trim();
   if (!linked.length) {
-    container.innerHTML = '<div class="empty"><span class="empty-symbol">◇</span><strong>Nenhum item nesta categoria.</strong><p>Use “Adicionar item” para cadastrar o primeiro.</p></div>';
+    container.innerHTML = query
+      ? '<div class="empty"><span class="empty-symbol">◇</span><strong>Nenhum item encontrado.</strong><p>Tente outro termo ou limpe a pesquisa.</p></div>'
+      : '<div class="empty"><span class="empty-symbol">◇</span><strong>Nenhum item nesta categoria.</strong><p>Use “Adicionar item” para cadastrar o primeiro.</p></div>';
     return;
   }
   switch (mode) {
@@ -1630,13 +1664,11 @@ function renderCatalog() {
   if (!catalogHasSearched) {
     box.innerHTML = catalogListEmptyHtml();
     $("selectionCount").textContent = "0";
-    $("selectionValue").textContent = money(0);
     return;
   }
   const filtered = getCatalogSelection();
   box.innerHTML = filtered.length ? filtered.map(itemCard).join("") : catalogListEmptyHtml();
   $("selectionCount").textContent = filtered.length;
-  $("selectionValue").textContent = money(filtered.reduce((sum, i) => sum + Number(i.estimatedValue || 0), 0));
 }
 
 function renderCategories() {
@@ -1707,22 +1739,24 @@ function closeCategoryDetailDialog() {
 function populateCategoryDetailContent(categoryId) {
   const category = categories.find((c) => c.id === categoryId);
   if (!category) return false;
-  const linked = items.filter((item) => itemBelongsToCategory(item, categoryId));
+  const linked = getCategoryDetailLinkedItems(categoryId);
+  const visible = linked.filter((item) => itemMatchesNameSearch(item, categoryDetailState.searchQuery));
   if ($("categoryDetailTitle")) $("categoryDetailTitle").textContent = category.name;
-  if ($("categoryDetailCount")) $("categoryDetailCount").textContent = formatItemCount(linked.length);
-  const categoryTotal = linked.reduce((sum, i) => sum + Number(i.estimatedValue || 0), 0);
+  if ($("categoryDetailCount")) $("categoryDetailCount").textContent = formatItemCount(visible.length);
+  if ($("categoryDetailSearchInput") && $("categoryDetailSearchInput").value !== (categoryDetailState.searchQuery || "")) {
+    $("categoryDetailSearchInput").value = categoryDetailState.searchQuery || "";
+  }
+  updateCategoryDetailSearchClear();
   const valueCard = $("categoryDetailValueCard");
-  const showValue = hasPositiveMoney(categoryTotal);
-  if ($("categoryDetailValue")) $("categoryDetailValue").textContent = money(categoryTotal);
-  if (valueCard) valueCard.hidden = !showValue;
-  valueCard?.closest(".category-detail-summary")?.classList.toggle("has-estimated-value", showValue);
+  if (valueCard) valueCard.hidden = true;
+  valueCard?.closest(".category-detail-summary")?.classList.remove("has-estimated-value");
   if ($("categoryDetailCover")) {
     $("categoryDetailCover").innerHTML = category.image
       ? `<img src="${category.image}" alt="Capa de ${escapeHtml(category.name)}" onerror="this.closest('.category-detail-cover')?.classList.add('is-empty');this.remove()">`
       : "";
     $("categoryDetailCover").classList.toggle("is-empty", !category.image);
   }
-  if ($("categoryDetailItems")) renderCategoryItemsView(linked);
+  if ($("categoryDetailItems")) renderCategoryItemsView(visible);
   updateCategoryViewSwitcherUI();
   if ($("categoryDetailAddBtn")) $("categoryDetailAddBtn").onclick = () => addItemFromCategory(categoryId);
   if ($("categoryDetailEditBtn")) {
@@ -1745,6 +1779,10 @@ function openCategoryDetail(categoryId, options = {}) {
   const category = categories.find((c) => c.id === categoryId);
   if (!category) return;
   activeCategoryDetailId = categoryId;
+  if (!options.preserveSearch) {
+    categoryDetailState.searchQuery = "";
+    if ($("categoryDetailSearchInput")) $("categoryDetailSearchInput").value = "";
+  }
   if (options.preservePageScroll) {
     document.querySelectorAll(".view").forEach((v) => v.classList.toggle("active", v.id === "categoriesView"));
     document.querySelectorAll(".nav-item").forEach((b) => b.classList.toggle("active", b.dataset.go === "categoriesView"));
@@ -1809,14 +1847,23 @@ function setupCategoryDetailDialog() {
   const dialog = $("categoryDetailDialog");
   $("closeCategoryDetailBtn")?.addEventListener("click", () => closeCategoryDetailDialog());
   dialog?.addEventListener("close", finishCategoryDetailClose);
+  $("categoryDetailSearchInput")?.addEventListener("input", (e) => {
+    categoryDetailState.searchQuery = e.target.value || "";
+    applyCategoryDetailSearchFilter();
+  });
+  $("categoryDetailSearchClear")?.addEventListener("click", () => {
+    categoryDetailState.searchQuery = "";
+    if ($("categoryDetailSearchInput")) {
+      $("categoryDetailSearchInput").value = "";
+      $("categoryDetailSearchInput").focus();
+    }
+    applyCategoryDetailSearchFilter();
+  });
   $("categoryViewSwitcher")?.addEventListener("click", (e) => {
     const btn = e.target.closest(".category-view-btn[data-category-view]");
     if (!btn) return;
     setCategoryViewMode(btn.dataset.categoryView);
-    if (activeCategoryDetailId) {
-      const linked = items.filter((item) => itemBelongsToCategory(item, activeCategoryDetailId));
-      renderCategoryItemsView(linked);
-    }
+    if (activeCategoryDetailId) applyCategoryDetailSearchFilter();
   });
 }
 
@@ -1933,7 +1980,7 @@ async function saveCategoryMedia() {
 function reportBlockFromMap(mapObj) {
   const entries = Object.entries(mapObj).filter(([key, value]) => key && value.count > 0).sort((a, b) => b[1].count - a[1].count).slice(0, 8);
   if (!entries.length) return '<div class="empty"><span class="empty-symbol">◇</span><strong>Sem dados suficientes.</strong><p>Cadastre mais itens para gerar este relatório.</p></div>';
-  return `<div class="report-list">${entries.map(([key, value]) => `<div class="report-row"><div><strong>${escapeHtml(key)}</strong><small>${value.count} item(ns)</small></div><div><strong>${money(value.value)}</strong></div></div>`).join("")}</div>`;
+  return `<div class="report-list">${entries.map(([key, value]) => `<div class="report-row"><div><strong>${escapeHtml(key)}</strong><small>${value.count} item(ns)</small></div><div><strong>${value.count}</strong></div></div>`).join("")}</div>`;
 }
 
 function renderReports() {
@@ -2074,8 +2121,126 @@ const photoViewerState = {
   touchStartX: 0,
   touchStartY: 0,
   touchActive: false,
-  swiping: false
+  swiping: false,
+  scale: 1,
+  panX: 0,
+  panY: 0,
+  minScale: 1,
+  maxScale: 4,
+  pinchStartDist: 0,
+  pinchStartScale: 1,
+  panStartX: 0,
+  panStartY: 0,
+  panOriginX: 0,
+  panOriginY: 0,
+  lastTapAt: 0,
+  gesturing: false
 };
+
+function getActiveViewerImage() {
+  return $("photoViewerTrack")?.querySelector(`.photo-viewer-slide[aria-hidden="false"] img`)
+    || $("photoViewerTrack")?.querySelectorAll(".photo-viewer-slide img")?.[photoViewerState.index]
+    || null;
+}
+
+function resetPhotoViewerZoom() {
+  photoViewerState.scale = 1;
+  photoViewerState.panX = 0;
+  photoViewerState.panY = 0;
+  photoViewerState.gesturing = false;
+  applyPhotoViewerZoom();
+}
+
+function applyPhotoViewerZoom() {
+  const img = getActiveViewerImage();
+  if (!img) return;
+  const { scale, panX, panY } = photoViewerState;
+  img.style.transform = `translate3d(${panX}px, ${panY}px, 0) scale(${scale})`;
+  img.classList.toggle("is-zoomed", scale > 1.01);
+  $("photoViewerViewport")?.classList.toggle("is-zoomed", scale > 1.01);
+}
+
+function clampPhotoViewerPan() {
+  if (photoViewerState.scale <= 1) {
+    photoViewerState.panX = 0;
+    photoViewerState.panY = 0;
+    return;
+  }
+  const maxPan = 180 * photoViewerState.scale;
+  photoViewerState.panX = Math.max(-maxPan, Math.min(maxPan, photoViewerState.panX));
+  photoViewerState.panY = Math.max(-maxPan, Math.min(maxPan, photoViewerState.panY));
+}
+
+function touchDistance(touches) {
+  const dx = touches[0].clientX - touches[1].clientX;
+  const dy = touches[0].clientY - touches[1].clientY;
+  return Math.hypot(dx, dy);
+}
+
+function mimeToExtension(mime = "") {
+  if (mime.includes("png")) return "png";
+  if (mime.includes("webp")) return "webp";
+  if (mime.includes("gif")) return "gif";
+  if (mime.includes("jpeg") || mime.includes("jpg")) return "jpg";
+  return "jpg";
+}
+
+function safeImageFileBase(name = "foto") {
+  return String(name || "foto")
+    .normalize("NFD").replace(/\p{M}/gu, "")
+    .replace(/[^\w\-]+/g, "-")
+    .replace(/-+/g, "-")
+    .replace(/^-|-$/g, "")
+    .slice(0, 60) || "foto";
+}
+
+async function dataUrlToImageFile(dataUrl, baseName = "foto") {
+  const response = await fetch(dataUrl);
+  const blob = await response.blob();
+  if (!blob || !blob.size) throw new Error("Arquivo de imagem vazio.");
+  const type = blob.type || "image/jpeg";
+  const filename = `${safeImageFileBase(baseName)}.${mimeToExtension(type)}`;
+  return new File([blob], filename, { type });
+}
+
+function downloadImageBlob(blob, filename) {
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  a.rel = "noopener";
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 1500);
+}
+
+async function shareOrDownloadViewerPhoto() {
+  const src = photoViewerState.photos[photoViewerState.index];
+  if (!src) {
+    alert("Nenhuma imagem disponível para salvar.");
+    return;
+  }
+  try {
+    const file = await dataUrlToImageFile(src, `vm-collection-foto-${photoViewerState.index + 1}`);
+    if (navigator.canShare && navigator.canShare({ files: [file] })) {
+      await navigator.share({ files: [file], title: file.name });
+      return;
+    }
+    downloadImageBlob(file, file.name);
+  } catch (error) {
+    if (error?.name === "AbortError") return;
+    console.error(error);
+    try {
+      const response = await fetch(src);
+      const blob = await response.blob();
+      downloadImageBlob(blob, `vm-collection-foto-${photoViewerState.index + 1}.${mimeToExtension(blob.type)}`);
+    } catch (fallbackError) {
+      console.error(fallbackError);
+      alert("Não foi possível salvar ou compartilhar esta imagem neste navegador.");
+    }
+  }
+}
 
 const itemDetailState = {
   isOpen: false,
@@ -2145,11 +2310,12 @@ function renderPhotoViewerSlides() {
   track.innerHTML = photoViewerState.photos.map((src, i) => `
     <div class="photo-viewer-slide" aria-hidden="${i !== photoViewerState.index}">
       <div class="photo-viewer-frame">
-        <img src="${src}" alt="Foto ${i + 1} de ${total}" decoding="async" onerror="this.hidden=true;this.closest('.photo-viewer-slide')?.classList.add('is-error')">
+        <img src="${src}" alt="Foto ${i + 1} de ${total}" decoding="async" draggable="false" onerror="this.hidden=true;this.closest('.photo-viewer-slide')?.classList.add('is-error')">
         <div class="photo-viewer-error">Imagem indisponível</div>
       </div>
     </div>
   `).join("");
+  resetPhotoViewerZoom();
   updatePhotoViewerTrack(false);
 }
 
@@ -2157,6 +2323,7 @@ function goToViewerPhoto(index, animate = true) {
   const max = photoViewerState.photos.length - 1;
   if (index < 0 || index > max || index === photoViewerState.index) return;
   photoViewerState.index = index;
+  resetPhotoViewerZoom();
   updatePhotoViewerTrack(animate);
 }
 
@@ -2228,7 +2395,7 @@ function renderDetailMedia(item) {
   const photos = itemPhotosFromRaw(item);
   const badges = itemBadges(item);
   if (!photos.length) {
-    return `<div class="detail-media"><div class="detail-placeholder">Sem foto</div>${badges}</div>`;
+    return `<div class="detail-media"><div class="detail-placeholder detail-placeholder-empty">Sem foto</div>${badges}</div>`;
   }
   const thumbs = photos.length > 1
     ? `<div class="detail-photo-thumbs">${photos.map((src, i) => `
@@ -2238,8 +2405,8 @@ function renderDetailMedia(item) {
     : "";
   return `<div class="detail-media-wrap">
     <button type="button" class="detail-media-main" onclick="openPhotoViewerForItem('${item.id}', 0, this)" aria-label="Ampliar fotos de ${escapeHtml(item.name || "item")}">
-      <img src="${photos[0]}" alt="${escapeHtml(item.name)}" onerror="this.hidden=true;this.nextElementSibling.hidden=false">
-      <div class="detail-placeholder" hidden>Imagem indisponível</div>
+      <img src="${photos[0]}" alt="${escapeHtml(item.name)}" decoding="async" onload="this.closest('.detail-media-main')?.classList.remove('is-error')" onerror="this.closest('.detail-media-main')?.classList.add('is-error')">
+      <div class="detail-placeholder" aria-hidden="true">Imagem indisponível</div>
     </button>
     ${badges}
     ${thumbs}
@@ -2258,6 +2425,7 @@ function setupPhotoViewer() {
   if (!dialog || !viewport) return;
 
   $("closePhotoViewerBtn")?.addEventListener("click", closePhotoViewer);
+  $("sharePhotoViewerBtn")?.addEventListener("click", () => shareOrDownloadViewerPhoto());
   $("photoViewerPrev")?.addEventListener("click", () => goToViewerPhoto(photoViewerState.index - 1));
   $("photoViewerNext")?.addEventListener("click", () => goToViewerPhoto(photoViewerState.index + 1));
 
@@ -2265,6 +2433,7 @@ function setupPhotoViewer() {
     photoViewerState.photos = [];
     photoViewerState.index = 0;
     photoViewerState.triggerEl = null;
+    resetPhotoViewerZoom();
   });
 
   dialog.addEventListener("cancel", (e) => {
@@ -2274,22 +2443,61 @@ function setupPhotoViewer() {
 
   dialog.addEventListener("keydown", (e) => {
     if (!dialog.open) return;
+    if (e.key === "Escape") { e.preventDefault(); closePhotoViewer(); return; }
     if (e.key === "ArrowLeft") { e.preventDefault(); goToViewerPhoto(photoViewerState.index - 1); }
     if (e.key === "ArrowRight") { e.preventDefault(); goToViewerPhoto(photoViewerState.index + 1); }
   });
 
   viewport.addEventListener("touchstart", (e) => {
-    if (photoViewerState.photos.length <= 1 || e.touches.length !== 1) return;
+    if (e.touches.length === 2) {
+      photoViewerState.gesturing = true;
+      photoViewerState.touchActive = false;
+      photoViewerState.swiping = false;
+      photoViewerState.pinchStartDist = touchDistance(e.touches);
+      photoViewerState.pinchStartScale = photoViewerState.scale;
+      e.preventDefault();
+      return;
+    }
+    if (e.touches.length !== 1) return;
     photoViewerState.touchStartX = e.touches[0].clientX;
     photoViewerState.touchStartY = e.touches[0].clientY;
+    photoViewerState.panStartX = e.touches[0].clientX;
+    photoViewerState.panStartY = e.touches[0].clientY;
+    photoViewerState.panOriginX = photoViewerState.panX;
+    photoViewerState.panOriginY = photoViewerState.panY;
     photoViewerState.touchActive = true;
     photoViewerState.swiping = false;
-  }, { passive: true });
+  }, { passive: false });
 
   viewport.addEventListener("touchmove", (e) => {
+    if (e.touches.length === 2 && photoViewerState.gesturing) {
+      const dist = touchDistance(e.touches);
+      const next = Math.min(
+        photoViewerState.maxScale,
+        Math.max(photoViewerState.minScale, photoViewerState.pinchStartScale * (dist / Math.max(photoViewerState.pinchStartDist, 1)))
+      );
+      photoViewerState.scale = next;
+      if (next <= 1) {
+        photoViewerState.panX = 0;
+        photoViewerState.panY = 0;
+      }
+      clampPhotoViewerPan();
+      applyPhotoViewerZoom();
+      e.preventDefault();
+      return;
+    }
     if (!photoViewerState.touchActive || e.touches.length !== 1) return;
     const dx = e.touches[0].clientX - photoViewerState.touchStartX;
     const dy = e.touches[0].clientY - photoViewerState.touchStartY;
+    if (photoViewerState.scale > 1.01) {
+      photoViewerState.panX = photoViewerState.panOriginX + (e.touches[0].clientX - photoViewerState.panStartX);
+      photoViewerState.panY = photoViewerState.panOriginY + (e.touches[0].clientY - photoViewerState.panStartY);
+      clampPhotoViewerPan();
+      applyPhotoViewerZoom();
+      e.preventDefault();
+      return;
+    }
+    if (photoViewerState.photos.length <= 1) return;
     if (!photoViewerState.swiping && Math.abs(dx) > 12 && Math.abs(dx) > Math.abs(dy) * 1.35) {
       photoViewerState.swiping = true;
     }
@@ -2297,9 +2505,30 @@ function setupPhotoViewer() {
   }, { passive: false });
 
   viewport.addEventListener("touchend", (e) => {
+    if (photoViewerState.gesturing) {
+      if (e.touches.length < 2) {
+        photoViewerState.gesturing = false;
+        if (photoViewerState.scale < 1.05) resetPhotoViewerZoom();
+      }
+      return;
+    }
     if (!photoViewerState.touchActive) return;
     const dx = e.changedTouches[0].clientX - photoViewerState.touchStartX;
-    if (photoViewerState.swiping && Math.abs(dx) > 52) {
+    const dy = e.changedTouches[0].clientY - photoViewerState.touchStartY;
+    const now = Date.now();
+    const isTap = Math.abs(dx) < 10 && Math.abs(dy) < 10;
+    if (isTap && now - photoViewerState.lastTapAt < 280) {
+      if (photoViewerState.scale > 1.01) resetPhotoViewerZoom();
+      else {
+        photoViewerState.scale = 2.4;
+        photoViewerState.panX = 0;
+        photoViewerState.panY = 0;
+        applyPhotoViewerZoom();
+      }
+      photoViewerState.lastTapAt = 0;
+    } else if (isTap) {
+      photoViewerState.lastTapAt = now;
+    } else if (photoViewerState.swiping && photoViewerState.scale <= 1.01 && Math.abs(dx) > 52) {
       if (dx < 0) goToViewerPhoto(photoViewerState.index + 1);
       else goToViewerPhoto(photoViewerState.index - 1);
     }
@@ -2366,9 +2595,10 @@ const LEGACY_ITEM_FIELDS = ["subcategory", "condition", "serial", "notes", "free
 const ITEM_FORM_TEXT_FIELDS = [
   "name", "category", "brand", "description", "tags",
   "memory", "relatedPerson", "relatedPlace", "relatedEvent", "storageLocation",
-  "eventDate", "connectedItems",
-  "paidValue", "estimatedValue", "acquiredAt", "acquiredPlace"
+  "eventDate", "connectedItems"
 ];
+
+const ACQUISITION_LEGACY_FIELDS = ["paidValue", "estimatedValue", "acquiredAt", "acquiredPlace"];
 
 function setAcquiredAtFormValue(value = "") {
   const normalized = String(value || "");
@@ -2398,8 +2628,8 @@ function readForm() {
   const desired = $("desired").checked;
   const payload = {
     id: $("editingId").value || uid(),
-    paidValue: $("paidValue").value,
-    estimatedValue: $("estimatedValue").value,
+    paidValue: existing?.paidValue ?? 0,
+    estimatedValue: existing?.estimatedValue ?? 0,
     favorite: $("favorite").checked,
     desired,
     rare: $("rare").checked,
@@ -2421,6 +2651,10 @@ function readForm() {
   // Preserva campos de memória ocultos da UI (legado) caso o input não exista no DOM
   ["relatedPerson", "relatedPlace", "relatedEvent", "storageLocation", "eventDate", "connectedItems"].forEach((field) => {
     if (!$(field)) payload[field] = existing?.[field] ?? "";
+  });
+  // Preserva aquisição legada (removida da UI) sem migração destrutiva
+  ACQUISITION_LEGACY_FIELDS.forEach((field) => {
+    if (existing && Object.prototype.hasOwnProperty.call(existing, field)) payload[field] = existing[field];
   });
   LEGACY_ITEM_FIELDS.forEach((field) => {
     payload[field] = existing?.[field] ?? "";
@@ -2504,12 +2738,12 @@ function detailDateRow(label, value) {
 function detailStatusChips(item) {
   const chips = [];
   if (item.favorite) chips.push("Favorito");
-  chips.push(isItemDesired(item) ? "Desejado" : "Possuído");
+  if (isItemDesired(item)) chips.push("Desejado");
   if (item.rare) chips.push("Raro");
   return chips.length ? `<div class="detail-status-row">${chips.map((chip) => `<span class="detail-status-chip">${escapeHtml(chip)}</span>`).join("")}</div>` : "";
 }
 
-function buildDetailHtml(item, { categoryMode = false } = {}) {
+function buildDetailHtml(item, { categoryMode = false, forceStack = false } = {}) {
   const media = renderDetailMedia(item);
   const memoryParts = [item.memory, item.freeMemoryText].map((part) => String(part || "").trim()).filter(Boolean);
   const memoryHtml = memoryParts.length
@@ -2537,12 +2771,8 @@ function buildDetailHtml(item, { categoryMode = false } = {}) {
     detailTableRow("Escala", item.scale),
     detailTableRow("Ano", item.year),
     detailTableRow("Estado de conservação", item.condition),
-    detailMoneyRow("Valor pago", item.paidValue),
-    detailMoneyRow("Valor estimado", item.estimatedValue),
     detailTableRow("Valor facial", item.faceValue),
-    detailDateRow("Data de aquisição", item.acquiredAt),
     detailDateRow("Data do acontecimento", item.eventDate),
-    detailTableRow("Local de aquisição", item.acquiredPlace),
     detailTableRow("Local de armazenamento", item.storageLocation),
     detailTableRow("Série / código", item.serial),
     detailTableRow("Tags", item.tags),
@@ -2560,8 +2790,8 @@ function buildDetailHtml(item, { categoryMode = false } = {}) {
   const videoHtml = item.video ? `<video class="detail-video" src="${item.video}" controls playsinline></video>` : "";
   const actions = categoryMode
     ? `<div class="detail-actions detail-actions-primary"><button class="primary-btn" type="button" onclick="editItem('${item.id}')">Editar item</button><button class="ghost-btn danger-btn" type="button" onclick="requestDeleteItem('${item.id}')">Excluir item</button></div>`
-    : `<div class="detail-actions"><button class="primary-btn" type="button" onclick="editItem('${item.id}')">Editar item</button><button class="secondary-btn" type="button" onclick="shareItem('${item.id}')">Compartilhar</button><button class="secondary-btn" type="button" onclick="printItem('${item.id}')">Gerar ficha/PDF</button><button class="ghost-btn danger-btn" type="button" onclick="requestDeleteItem('${item.id}')">Excluir item</button></div>`;
-  const stackClass = categoryMode ? " detail-card-stack" : "";
+    : `<div class="detail-actions detail-actions-primary"><button class="primary-btn" type="button" onclick="editItem('${item.id}')">Editar item</button><button class="secondary-btn" type="button" onclick="shareItem('${item.id}')">Compartilhar</button><button class="secondary-btn" type="button" onclick="printItem('${item.id}')">Gerar ficha/PDF</button><button class="ghost-btn danger-btn" type="button" onclick="requestDeleteItem('${item.id}')">Excluir item</button></div>`;
+  const stackClass = (categoryMode || forceStack) ? " detail-card-stack" : "";
   return `<article class="detail-card${stackClass}"><div class="detail-hero">${media}<div class="detail-info"><span class="eyebrow">${escapeHtml(item.category || "Coleção")}</span><h2>${escapeHtml(item.name || "Item sem nome")}</h2>${detailStatusChips(item)}${descriptionHtml}${memoryHtml}${memoryAudiosHtml}${videoHtml}${connectionsHtml}${tableHtml}${notesHtml}${files}${actions}</div></div></article>`;
 }
 
@@ -2572,7 +2802,7 @@ function refreshItemDetailDialog(itemId) {
   const contentEl = $("itemDetailContent");
   if (!item || !contentEl) return;
   const categoryMode = itemDetailState.returnContext?.type === "category";
-  contentEl.innerHTML = buildDetailHtml(item, { categoryMode });
+  contentEl.innerHTML = buildDetailHtml(item, { categoryMode, forceStack: true });
   itemDetailState.currentItemId = item.id;
 }
 
@@ -2600,7 +2830,9 @@ function finishItemDetailClose() {
   if ($("itemDetailContent")) $("itemDetailContent").innerHTML = "";
   if ($("itemDetailScroll")) $("itemDetailScroll").scrollTop = 0;
   if (ctx?.type === "category" && ctx.categoryId) {
-    openCategoryDetail(ctx.categoryId, { preservePageScroll: true, restoreItemsScroll: itemsScroll });
+    openCategoryDetail(ctx.categoryId, { preservePageScroll: true, restoreItemsScroll: itemsScroll, preserveSearch: true });
+  } else if (ctx?.type === "catalog") {
+    showView("catalogView");
   }
   trigger?.focus?.();
 }
@@ -2621,7 +2853,7 @@ function openItemDetailDialog(item, returnContext, triggerEl = null) {
   itemDetailState.triggerEl = triggerEl || document.activeElement;
   itemDetailState.currentItemId = item.id;
   const categoryMode = returnContext?.type === "category";
-  contentEl.innerHTML = buildDetailHtml(item, { categoryMode });
+  contentEl.innerHTML = buildDetailHtml(item, { categoryMode, forceStack: true });
   scrollEl.scrollTop = 0;
   lockPageScroll();
   dialog.showModal();
@@ -2640,8 +2872,7 @@ function openDetail(id) {
     openItemDetailDialog(item, { type: "category", categoryId: activeCategoryDetailId }, document.activeElement);
     return;
   }
-  $("detailContent").innerHTML = buildDetailHtml(item, { categoryMode: false });
-  showView("detailView");
+  openItemDetailDialog(item, { type: "catalog" }, document.activeElement);
 }
 
 function editItem(id) {
@@ -2735,7 +2966,7 @@ function setupDeleteItemDialog() {
 }
 function shareItem(id) {
   const item = items.find((i) => i.id === id); if (!item) return;
-  const text = `${APP_DISPLAY_NAME}\n${item.name}\nCategoria: ${item.category || "—"}\nValor estimado: ${money(item.estimatedValue)}`;
+  const text = `${APP_DISPLAY_NAME}\n${item.name}\nCategoria: ${item.category || "—"}`;
   if (navigator.share) navigator.share({ title: item.name, text }).catch(() => {}); else { navigator.clipboard?.writeText(text); alert("Resumo copiado para a área de transferência."); }
 }
 function printItem(id) {
@@ -2761,7 +2992,6 @@ function buildPdfItemDetailLines(item) {
     lines.push(`<p class="pdf-detail-line"><strong>${escapeHtml(label)}:</strong> ${escapeHtml(text)}</p>`);
   };
   pushText("Marca/Produtor", item.brand);
-  if (item.acquiredAt) pushText("Data de aquisição", formatItemDate(item.acquiredAt));
   pushText("Descrição", item.description);
   const definedFields = getAllCustomFieldsForCategoryName(item.category);
   const values = item.customFieldValues || {};
@@ -2779,13 +3009,10 @@ function buildPdfItemDetailLines(item) {
     pushText("Campo personalizado", text);
   });
   pushText("Local de armazenamento", item.storageLocation);
-  pushText("Local de aquisição", item.acquiredPlace);
   pushText("História", item.memory);
   pushText("Pessoa relacionada", item.relatedPerson);
   pushText("Local relacionado", item.relatedPlace);
   pushText("Evento relacionado", item.relatedEvent);
-  if (hasPositiveMoney(item.estimatedValue)) pushText("Valor estimado", money(item.estimatedValue));
-  if (hasPositiveMoney(item.paidValue)) pushText("Valor pago", money(item.paidValue));
   if (item.memoryAudios?.length) {
     lines.push(`<p class="pdf-detail-line"><strong>Memórias em áudio:</strong> ${item.memoryAudios.length} gravação(ões)</p>`);
   }
@@ -2833,14 +3060,11 @@ function buildCatalogPdfDocument(selectedItems, options = {}) {
     const image = item.photo
       ? `<img src="${item.photo}" alt="${escapeHtml(item.name)}">`
       : `<div class="item-no-image">VM</div>`;
-    const markers = [item.favorite ? "Favorito" : "", item.desired ? "Desejado" : "Possuído", item.rare ? "Raro" : ""].filter(Boolean).join(" • ");
-    const primaryMeta = [item.category, item.acquiredAt ? formatItemDate(item.acquiredAt) : item.year].filter(Boolean).map(escapeHtml).join(" • ") || "Sem categoria";
+    const markers = [item.favorite ? "Favorito" : "", item.desired ? "Desejado" : "", item.rare ? "Raro" : ""].filter(Boolean).join(" • ");
+    const primaryMeta = [item.category, item.year].filter(Boolean).map(escapeHtml).join(" • ") || "Sem categoria";
     const detailLines = buildPdfItemDetailLines(item);
-    const valueHtml = hasPositiveMoney(item.estimatedValue)
-      ? `<div class="row-value"><span>Valor estimado</span><strong>${money(item.estimatedValue)}</strong></div>`
-      : "";
     return `
-      <article class="catalog-row${valueHtml ? "" : " catalog-row-no-value"}">
+      <article class="catalog-row catalog-row-no-value">
         <div class="row-number">${String(index + 1).padStart(2, "0")}</div>
         <div class="row-photo">${image}</div>
         <div class="row-content">
@@ -2849,7 +3073,6 @@ function buildCatalogPdfDocument(selectedItems, options = {}) {
           ${markers ? `<p class="markers">${escapeHtml(markers)}</p>` : ""}
           ${detailLines ? `<div class="pdf-detail-block">${detailLines}</div>` : ""}
         </div>
-        ${valueHtml}
       </article>`;
   }).join("");
 

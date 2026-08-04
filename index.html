@@ -8,11 +8,11 @@
   <meta name="apple-mobile-web-app-title" content="VM Life ARCHIVE" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
   <title>VM Life ARCHIVE</title>
-  <meta name="vm-asset-version" content="202608043" />
+  <meta name="vm-asset-version" content="202608044" />
   <link rel="manifest" href="manifest.webmanifest" />
   <link rel="apple-touch-icon" href="assets/icon-180.png" />
   <link rel="icon" href="assets/icon-192.png" />
-  <link rel="stylesheet" href="styles.css?v=202608043" />
+  <link rel="stylesheet" href="styles.css?v=202608044" />
 </head>
 <body>
   <div id="appShell">
@@ -136,7 +136,6 @@
         <div class="catalog-toolbar">
           <div class="selection-summary">
             <article class="info-mini"><span>Itens encontrados</span><strong id="selectionCount">0</strong></article>
-            <article class="info-mini value-only"><span>Valor estimado da seleção</span><strong id="selectionValue">R$ 0</strong></article>
           </div>
           <div class="catalog-controls">
             <div class="segmented"><button id="gridBtn" class="active" type="button" aria-label="Grade">▦</button><button id="listBtn" type="button" aria-label="Lista">☷</button></div>
@@ -239,7 +238,7 @@
             </div>
           </section>
 
-          <section class="form-section">
+          <section class="form-section" id="acquisitionFormSection" hidden aria-hidden="true">
             <div class="section-number">05</div>
             <div class="form-section-content">
               <div class="form-section-head"><div><span class="panel-kicker">AQUISIÇÃO</span><h3>Valor</h3></div></div>
@@ -478,7 +477,14 @@
       <div class="category-detail-scroll" id="categoryDetailScroll">
         <div id="categoryDetailCover" class="category-detail-cover"></div>
         <div class="category-detail-summary">
-          <article class="info-mini info-mini-compact"><strong id="categoryDetailCount">0 itens</strong></article>
+          <div class="category-detail-summary-row">
+            <article class="info-mini info-mini-compact category-detail-count-card"><strong id="categoryDetailCount">0 itens</strong></article>
+            <label class="category-detail-search" for="categoryDetailSearchInput">
+              <span class="category-detail-search-icon" aria-hidden="true">⌕</span>
+              <input id="categoryDetailSearchInput" type="search" placeholder="Localizar" autocomplete="off" enterkeyhint="search" aria-label="Localizar itens nesta categoria" />
+              <button type="button" class="category-detail-search-clear" id="categoryDetailSearchClear" hidden aria-label="Limpar pesquisa">×</button>
+            </label>
+          </div>
           <article class="info-mini info-mini-compact info-mini-value" id="categoryDetailValueCard" hidden><strong id="categoryDetailValue">R$ 0</strong></article>
         </div>
         <div class="category-detail-actions">
@@ -554,6 +560,9 @@
   <dialog id="photoViewerDialog" class="photo-viewer-dialog" aria-label="Visualizador de fotos do item">
     <div class="photo-viewer-shell">
       <header class="photo-viewer-header">
+        <button type="button" class="photo-viewer-share" id="sharePhotoViewerBtn" aria-label="Salvar ou compartilhar imagem">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" d="M12 3v12m0-12 4 4m-4-4-4 4M5 14v5a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-5"/></svg>
+        </button>
         <span id="photoViewerCounter" class="photo-viewer-counter" hidden>1 de 1</span>
         <button type="button" class="photo-viewer-close" id="closePhotoViewerBtn" aria-label="Fechar visualização">×</button>
       </header>
@@ -585,6 +594,6 @@
 
   <template id="emptyTemplate"><div class="empty"><span class="empty-symbol">◇</span><strong>Nenhum item por aqui ainda.</strong><p>Use “Adicionar item” para começar sua coleção.</p></div></template>
   <script src="storage.js?v=202606208"></script>
-  <script src="app.js?v=202608042"></script>
+  <script src="app.js?v=202608044"></script>
 </body>
 </html>
