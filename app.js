@@ -1095,12 +1095,21 @@ function getCategoryGroups() {
   }).sort((a, b) => a.cat.localeCompare(b.cat, "pt-BR"));
 }
 
+function formatItemCount(n) {
+  const count = Number(n) || 0;
+  return count === 1 ? "1 item" : `${count} itens`;
+}
+
+function categoryInitials(name) {
+  return String(name || "").split(/\s+/).filter(Boolean).slice(0, 2).map((x) => x[0]).join("").toUpperCase() || "VM";
+}
+
 function homeCategoryCard({ id, cat, category, count }) {
-  const initials = cat.split(/\s+/).slice(0, 2).map((x) => x[0]).join("").toUpperCase();
+  const initials = categoryInitials(cat);
   const media = category.image
-    ? `<div class="home-category-cover"><img src="${category.image}" alt="" onerror="this.hidden=true;this.nextElementSibling.hidden=false"><div class="home-category-placeholder" hidden>${escapeHtml(initials || "VM")}</div></div>`
-    : `<div class="home-category-cover"><div class="home-category-placeholder">${escapeHtml(initials || "VM")}</div></div>`;
-  return `<button type="button" class="home-category-card" data-category-id="${escapeHtml(id)}" aria-label="Abrir categoria ${escapeHtml(cat)}">${media}<div class="home-category-body"><h4>${escapeHtml(cat)}</h4><span>${count} item(ns)</span></div></button>`;
+    ? `<div class="home-category-cover"><img src="${category.image}" alt="" onerror="this.remove()"></div>`
+    : `<div class="home-category-cover home-category-cover-empty" aria-hidden="true"></div>`;
+  return `<button type="button" class="home-category-card" data-category-id="${escapeHtml(id)}" aria-label="Abrir categoria ${escapeHtml(cat)}">${media}<div class="home-category-body"><div class="category-title-row"><span class="category-symbol" aria-hidden="true">${escapeHtml(initials)}</span><h4 class="category-title-name">${escapeHtml(cat)}</h4><span class="category-count">(${formatItemCount(count)})</span></div></div></button>`;
 }
 
 function homeCategoriesEmptyHtml() {
@@ -1635,11 +1644,11 @@ function renderCategories() {
   const cats = grouped.map((g) => g.cat);
   $("categoriesTotal").textContent = cats.length;
   $("categoryCards").innerHTML = grouped.length ? grouped.map(({ cat, category, count: groupLength }) => {
-    const initials = cat.split(/\s+/).slice(0, 2).map((x) => x[0]).join("").toUpperCase();
+    const initials = categoryInitials(cat);
     const media = category.image
-      ? `<button type="button" class="category-cover category-cover-open" onclick="openCategoryDetail('${category.id}')" aria-label="Abrir categoria ${escapeHtml(cat)}"><img src="${category.image}" alt="" onerror="this.hidden=true;this.nextElementSibling.hidden=false"><div class="category-cover-placeholder" hidden>${escapeHtml(initials || "VM")}</div></button>`
-      : `<button type="button" class="category-cover category-cover-open" onclick="openCategoryDetail('${category.id}')" aria-label="Abrir categoria ${escapeHtml(cat)}"><div class="category-cover-placeholder">${escapeHtml(initials || "VM")}</div></button>`;
-    return `<article class="category-card">${media}<div class="category-card-content"><div class="category-title-row"><span class="category-symbol">${escapeHtml(initials || "VM")}</span><h4>${escapeHtml(cat)}</h4></div><div class="category-meta"><div><span>Quantidade</span><strong>${groupLength} item(ns)</strong></div></div><div class="category-card-actions"><button type="button" class="secondary-btn" onclick="openCategoryDetail('${category.id}')">Abrir</button><button type="button" class="primary-btn" onclick="addItemFromCategory('${category.id}')">Adicionar item</button><button type="button" class="text-action" onclick="openCategoryEditor('${category.id}')">Editar</button></div></div></article>`;
+      ? `<button type="button" class="category-cover category-cover-open" onclick="openCategoryDetail('${category.id}')" aria-label="Abrir categoria ${escapeHtml(cat)}"><img src="${category.image}" alt="" onerror="this.closest('.category-cover').classList.add('category-cover-empty');this.remove()"></button>`
+      : `<button type="button" class="category-cover category-cover-open category-cover-empty" onclick="openCategoryDetail('${category.id}')" aria-label="Abrir categoria ${escapeHtml(cat)}"></button>`;
+    return `<article class="category-card">${media}<div class="category-card-content"><div class="category-title-row"><span class="category-symbol" aria-hidden="true">${escapeHtml(initials)}</span><h4 class="category-title-name">${escapeHtml(cat)}</h4><span class="category-count">(${formatItemCount(groupLength)})</span></div><div class="category-card-actions"><button type="button" class="secondary-btn" onclick="openCategoryDetail('${category.id}')">Abrir</button><button type="button" class="primary-btn" onclick="addItemFromCategory('${category.id}')">Adicionar item</button><button type="button" class="text-action" onclick="openCategoryEditor('${category.id}')">Editar</button></div></div></article>`;
   }).join("") : emptyHtml();
 }
 
@@ -1700,7 +1709,7 @@ function populateCategoryDetailContent(categoryId) {
   if (!category) return false;
   const linked = items.filter((item) => itemBelongsToCategory(item, categoryId));
   if ($("categoryDetailTitle")) $("categoryDetailTitle").textContent = category.name;
-  if ($("categoryDetailCount")) $("categoryDetailCount").textContent = `${linked.length} item(ns)`;
+  if ($("categoryDetailCount")) $("categoryDetailCount").textContent = formatItemCount(linked.length);
   const categoryTotal = linked.reduce((sum, i) => sum + Number(i.estimatedValue || 0), 0);
   const valueCard = $("categoryDetailValueCard");
   const showValue = hasPositiveMoney(categoryTotal);
@@ -1709,8 +1718,9 @@ function populateCategoryDetailContent(categoryId) {
   valueCard?.closest(".category-detail-summary")?.classList.toggle("has-estimated-value", showValue);
   if ($("categoryDetailCover")) {
     $("categoryDetailCover").innerHTML = category.image
-      ? `<img src="${category.image}" alt="Capa de ${escapeHtml(category.name)}" onerror="this.hidden=true;this.nextElementSibling.hidden=false"><div class="category-cover-placeholder" hidden>${escapeHtml(category.name.slice(0, 2).toUpperCase())}</div>`
-      : `<div class="category-cover-placeholder">${escapeHtml(category.name.slice(0, 2).toUpperCase() || "VM")}</div>`;
+      ? `<img src="${category.image}" alt="Capa de ${escapeHtml(category.name)}" onerror="this.closest('.category-detail-cover')?.classList.add('is-empty');this.remove()">`
+      : "";
+    $("categoryDetailCover").classList.toggle("is-empty", !category.image);
   }
   if ($("categoryDetailItems")) renderCategoryItemsView(linked);
   updateCategoryViewSwitcherUI();

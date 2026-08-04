@@ -8,11 +8,11 @@
   <meta name="apple-mobile-web-app-title" content="VM Life ARCHIVE" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
   <title>VM Life ARCHIVE</title>
-  <meta name="vm-asset-version" content="202608026" />
+  <meta name="vm-asset-version" content="202608042" />
   <link rel="manifest" href="manifest.webmanifest" />
   <link rel="apple-touch-icon" href="assets/icon-180.png" />
   <link rel="icon" href="assets/icon-192.png" />
-  <link rel="stylesheet" href="styles.css?v=202608026" />
+  <link rel="stylesheet" href="styles.css?v=202608042" />
 </head>
 <body>
   <div id="appShell">
@@ -272,7 +272,7 @@
           <div class="banner-icon" id="bannerCategoryIcon"></div>
         </div>
         <div class="category-summary-row">
-          <article class="metric-card dark-metric"><span>Categorias cadastradas</span><strong id="categoriesTotal">0</strong></article>
+          <article class="metric-card dark-metric metric-card-inline"><span>Categorias:</span><strong id="categoriesTotal">0</strong></article>
         </div>
         <div class="section-title with-action categories-list-title">
           <h3>Suas categorias</h3>
@@ -478,13 +478,15 @@
       <div class="category-detail-scroll" id="categoryDetailScroll">
         <div id="categoryDetailCover" class="category-detail-cover"></div>
         <div class="category-detail-summary">
-          <article class="info-mini"><span>Itens</span><strong id="categoryDetailCount">0</strong></article>
-          <article class="info-mini" id="categoryDetailValueCard" hidden><span>Valor estimado</span><strong id="categoryDetailValue">R$ 0</strong></article>
+          <article class="info-mini info-mini-compact"><strong id="categoryDetailCount">0 itens</strong></article>
+          <article class="info-mini info-mini-compact info-mini-value" id="categoryDetailValueCard" hidden><strong id="categoryDetailValue">R$ 0</strong></article>
         </div>
         <div class="category-detail-actions">
-          <button id="categoryDetailAddBtn" class="primary-btn" type="button">Adicionar item</button>
-          <button id="categoryDetailPdfBtn" class="secondary-btn" type="button">Gerar PDF da categoria</button>
-          <button id="categoryDetailEditBtn" class="secondary-btn" type="button">Editar categoria</button>
+          <div class="category-detail-actions-primary">
+            <button id="categoryDetailAddBtn" class="primary-btn" type="button">Adicionar item</button>
+            <button id="categoryDetailPdfBtn" class="secondary-btn" type="button">Gerar PDF</button>
+          </div>
+          <button id="categoryDetailEditBtn" class="secondary-btn category-detail-edit-btn" type="button">Editar categoria</button>
         </div>
         <div class="category-view-switcher" id="categoryViewSwitcher" role="tablist" aria-label="Modo de visualização">
           <button type="button" class="category-view-btn category-view-btn-iconed" data-category-view="vitrine" role="tab" aria-label="Vitrine" title="Vitrine">
@@ -583,6 +585,6 @@
 
   <template id="emptyTemplate"><div class="empty"><span class="empty-symbol">◇</span><strong>Nenhum item por aqui ainda.</strong><p>Use “Adicionar item” para começar sua coleção.</p></div></template>
   <script src="storage.js?v=202606208"></script>
-  <script src="app.js?v=202607251"></script>
+  <script src="app.js?v=202608042"></script>
 </body>
 </html>
