@@ -8,11 +8,11 @@
   <meta name="apple-mobile-web-app-title" content="VM Life ARCHIVE" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
   <title>VM Life ARCHIVE</title>
-  <meta name="vm-asset-version" content="202608044" />
+  <meta name="vm-asset-version" content="202608045" />
   <link rel="manifest" href="manifest.webmanifest" />
   <link rel="apple-touch-icon" href="assets/icon-180.png" />
   <link rel="icon" href="assets/icon-192.png" />
-  <link rel="stylesheet" href="styles.css?v=202608044" />
+  <link rel="stylesheet" href="styles.css?v=202608045" />
 </head>
 <body>
   <div id="appShell">
@@ -42,21 +42,18 @@
             <span class="home-global-search-icon" aria-hidden="true">⌕</span>
             <span>Pesquisar</span>
           </button>
-          <button class="home-add-btn" data-go="addView" type="button">
+          <button class="home-add-btn" id="homeCreateCategoryPrimaryBtn" type="button">
             <span class="home-add-plus" aria-hidden="true">+</span>
-            <span>Adicionar</span>
+            <span>Criar categoria</span>
           </button>
         </div>
 
         <div class="home-categories-block">
-          <div class="section-title with-action home-catalogs-title">
-            <h3>Suas categorias</h3>
-            <button class="link-btn" data-go="categoriesView" type="button">mais... <span>›</span></button>
-          </div>
           <div class="home-categories-actions">
-            <button type="button" id="homeCreateCategoryBtn" class="home-create-category-btn" aria-label="Criar categoria">
-              <span class="home-create-category-plus" aria-hidden="true">+</span>
-              <span>Criar categoria</span>
+            <button type="button" id="homeCreateCategoryBtn" class="home-create-category-btn" aria-label="Suas Categorias">
+              <span class="home-create-category-icon" id="homeYourCategoriesIcon" aria-hidden="true"></span>
+              <span class="home-create-category-label">Suas Categorias</span>
+              <span class="home-create-category-arrow" aria-hidden="true">›</span>
             </button>
           </div>
           <div id="homeCategoryCards" class="home-categories-grid" aria-live="polite"></div>
@@ -275,7 +272,7 @@
         </div>
         <div class="section-title with-action categories-list-title">
           <h3>Suas categorias</h3>
-          <button id="createCategoryBtn" class="primary-btn" type="button">Nova categoria</button>
+          <button id="createCategoryBtn" class="primary-btn" type="button">Criar Categoria</button>
         </div>
         <div id="categoryCards" class="category-grid empty-state"></div>
       </section>
@@ -391,18 +388,18 @@
   </div>
 
   <dialog id="categoryDialog" class="media-dialog">
-    <form id="categoryMediaForm" class="dialog-card category-media-form" method="dialog">
+    <form id="categoryMediaForm" class="dialog-card category-media-form" method="dialog" novalidate>
       <div class="dialog-title-row">
-        <div><span class="panel-kicker">CATEGORIA</span><h3 id="categoryDialogTitle">Nova categoria</h3></div>
+        <div><h3 id="categoryDialogTitle">Nova Categoria</h3></div>
         <button id="closeCategoryDialogBtn" class="ghost-btn" type="button">Fechar</button>
       </div>
       <input id="categoryEditingId" type="hidden" />
-      <label class="field-wide">Nome da categoria<input id="categoryNameInput" required /></label>
-      <section class="category-custom-fields-panel" aria-labelledby="categoryCustomFieldsHeading">
+      <label class="field-wide" id="categoryNameField">Nome da categoria<input id="categoryNameInput" autocomplete="off" /></label>
+      <section class="category-custom-fields-panel" id="categoryCustomFieldsPanel" aria-labelledby="categoryCustomFieldsHeading">
         <div class="category-custom-fields-head">
           <div>
             <span class="panel-kicker">CAMPOS PRINCIPAIS</span>
-            <p id="categoryCustomFieldsHeading">Defina os campos principais desta categoria.</p>
+            <p id="categoryCustomFieldsHeading">Defina quais informações serão preenchidas para cada item desta categoria.</p>
           </div>
           <button type="button" class="secondary-btn" id="addCategoryCustomFieldBtn">+ Adicionar campo</button>
         </div>
@@ -594,6 +591,6 @@
 
   <template id="emptyTemplate"><div class="empty"><span class="empty-symbol">◇</span><strong>Nenhum item por aqui ainda.</strong><p>Use “Adicionar item” para começar sua coleção.</p></div></template>
   <script src="storage.js?v=202606208"></script>
-  <script src="app.js?v=202608044"></script>
+  <script src="app.js?v=202608045"></script>
 </body>
 </html>
