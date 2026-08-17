@@ -8,11 +8,11 @@
   <meta name="apple-mobile-web-app-title" content="VM Life ARCHIVE" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
   <title>VM Life ARCHIVE</title>
-  <meta name="vm-asset-version" content="202608046" />
+  <meta name="vm-asset-version" content="202608047" />
   <link rel="manifest" href="manifest.webmanifest" />
   <link rel="apple-touch-icon" href="assets/icon-180.png" />
   <link rel="icon" href="assets/icon-192.png" />
-  <link rel="stylesheet" href="styles.css?v=202608046" />
+  <link rel="stylesheet" href="styles.css?v=202608047" />
 </head>
 <body>
   <div id="appShell">
@@ -495,14 +495,12 @@
           <article class="info-mini info-mini-compact info-mini-value" id="categoryDetailValueCard" hidden><strong id="categoryDetailValue">R$ 0</strong></article>
         </div>
         <div class="category-detail-actions">
-          <div class="category-detail-actions-primary">
-            <button id="categoryDetailAddBtn" class="primary-btn" type="button">Adicionar item</button>
-            <button id="categoryDetailPdfBtn" class="secondary-btn" type="button">Gerar PDF</button>
-          </div>
-          <button id="categoryDetailEditBtn" class="secondary-btn category-detail-edit-btn" type="button">Editar categoria</button>
+          <button id="categoryDetailAddBtn" class="category-detail-add-circle" type="button" aria-label="Adicionar item"><span aria-hidden="true">+</span></button>
+          <button id="categoryDetailPdfBtn" class="secondary-btn category-detail-action-btn" type="button">Gerar PDF</button>
+          <button id="categoryDetailEditBtn" class="secondary-btn category-detail-action-btn" type="button">Editar categoria</button>
         </div>
         <div class="category-view-switcher" id="categoryViewSwitcher" role="tablist" aria-label="Modo de visualização">
-          <button type="button" class="category-view-btn category-view-btn-iconed" data-category-view="vitrine" role="tab" aria-label="Vitrine" title="Vitrine">
+          <button type="button" class="category-view-btn category-view-btn-iconed is-active" data-category-view="vitrine" role="tab" aria-label="Vitrine" title="Vitrine">
             <span class="category-view-btn-icon" id="categoryViewVitrineIcon" aria-hidden="true"></span>
             <span class="category-view-btn-label">Vitrine</span>
           </button>
@@ -511,7 +509,6 @@
             <span class="category-view-btn-label">Estante</span>
           </button>
           <button type="button" class="category-view-btn" data-category-view="timeline" role="tab">Linha do tempo</button>
-          <button type="button" class="category-view-btn is-active" data-category-view="lista" role="tab">Lista</button>
         </div>
         <div id="categoryDetailItems" class="category-detail-items cards-grid"></div>
       </div>
@@ -601,6 +598,6 @@
 
   <template id="emptyTemplate"><div class="empty"><span class="empty-symbol">◇</span><strong>Nenhum item por aqui ainda.</strong><p>Use “Adicionar item” para começar sua coleção.</p></div></template>
   <script src="storage.js?v=202606208"></script>
-  <script src="app.js?v=202608046"></script>
+  <script src="app.js?v=202608047"></script>
 </body>
 </html>

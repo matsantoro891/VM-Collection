@@ -36,7 +36,7 @@ let gridMode = "grid";
 let catalogAppliedFilters = { terms: [], categoryId: "", classification: "all", dateFrom: "", dateTo: "" };
 let catalogHasSearched = false;
 const CATEGORY_VIEW_STORAGE_KEY = "vmCollection.categoryViewMode";
-let categoryViewMode = localStorage.getItem(CATEGORY_VIEW_STORAGE_KEY) || "lista";
+let categoryViewMode = normalizeCategoryViewMode(localStorage.getItem(CATEGORY_VIEW_STORAGE_KEY));
 const globalSearchState = { isOpen: false };
 
 const $ = (id) => document.getElementById(id);
@@ -1199,13 +1199,18 @@ function itemMatchesSearchTerms(item, terms) {
   return terms.every((term) => haystack.includes(term));
 }
 
+function normalizeCategoryViewMode(mode) {
+  if (mode === "lista") return "vitrine";
+  const allowed = ["vitrine", "estante", "timeline"];
+  return allowed.includes(mode) ? mode : "vitrine";
+}
+
 function getCategoryViewMode() {
   return categoryViewMode;
 }
 
 function setCategoryViewMode(mode) {
-  const allowed = ["vitrine", "estante", "timeline", "lista"];
-  categoryViewMode = allowed.includes(mode) ? mode : "lista";
+  categoryViewMode = normalizeCategoryViewMode(mode);
   localStorage.setItem(CATEGORY_VIEW_STORAGE_KEY, categoryViewMode);
   updateCategoryViewSwitcherUI();
 }
@@ -1311,27 +1316,24 @@ function renderCategoryItemsView(linked) {
   const container = $("categoryDetailItems");
   if (!container) return;
   const mode = getCategoryViewMode();
-  container.className = `category-detail-items category-view-${mode}${mode === "lista" ? " cards-grid" : ""}`;
+  container.className = `category-detail-items category-view-${mode}`;
   const query = String(categoryDetailState.searchQuery || "").trim();
   if (!linked.length) {
     container.innerHTML = query
       ? '<div class="empty"><span class="empty-symbol">◇</span><strong>Nenhum item encontrado.</strong><p>Tente outro termo ou limpe a pesquisa.</p></div>'
-      : '<div class="empty"><span class="empty-symbol">◇</span><strong>Nenhum item nesta categoria.</strong><p>Use “Adicionar item” para cadastrar o primeiro.</p></div>';
+      : '<div class="empty"><span class="empty-symbol">◇</span><strong>Nenhum item nesta categoria.</strong><p>Use o botão “+” para cadastrar o primeiro.</p></div>';
     return;
   }
   switch (mode) {
-    case "vitrine":
-      container.innerHTML = linked.map(vitrineCard).join("");
-      break;
     case "estante":
       container.innerHTML = renderShelfView(linked);
       break;
     case "timeline":
       container.innerHTML = renderTimelineView(linked);
       break;
-    case "lista":
+    case "vitrine":
     default:
-      container.innerHTML = linked.map(itemCard).join("");
+      container.innerHTML = linked.map(vitrineCard).join("");
       break;
   }
 }
@@ -1771,12 +1773,13 @@ function renderCategories() {
     $("categoryCards").innerHTML = '<div class="empty"><span class="empty-symbol">◇</span><strong>Nenhuma categoria encontrada.</strong></div>';
     return;
   }
-  $("categoryCards").innerHTML = filtered.map(({ cat, category, count: groupLength }) => {
+  $("categoryCards").innerHTML = filtered.map(({ cat, category }) => {
     const initials = categoryInitials(cat);
-    const media = category.image
-      ? `<button type="button" class="category-cover category-cover-open" onclick="openCategoryDetail('${category.id}')" aria-label="Abrir categoria ${escapeHtml(cat)}"><img src="${category.image}" alt="" onerror="this.closest('.category-cover').classList.add('category-cover-empty');this.remove()"></button>`
-      : `<button type="button" class="category-cover category-cover-open category-cover-empty" onclick="openCategoryDetail('${category.id}')" aria-label="Abrir categoria ${escapeHtml(cat)}"></button>`;
-    return `<article class="category-card">${media}<div class="category-card-content"><div class="category-title-row"><span class="category-symbol" aria-hidden="true">${escapeHtml(initials)}</span><h4 class="category-title-name">${escapeHtml(cat)}</h4><span class="category-count">(${formatItemCount(groupLength)})</span></div><div class="category-card-actions"><button type="button" class="secondary-btn" onclick="openCategoryDetail('${category.id}')">Abrir</button><button type="button" class="primary-btn" onclick="addItemFromCategory('${category.id}')">Adicionar item</button><button type="button" class="text-action" onclick="openCategoryEditor('${category.id}')">Editar</button></div></div></article>`;
+    const coverInner = category.image
+      ? `<img src="${category.image}" alt="" onerror="this.closest('.category-cover').classList.add('category-cover-empty');this.remove()">`
+      : "";
+    const coverEmptyClass = category.image ? "" : " category-cover-empty";
+    return `<article class="category-card"><div class="category-cover-wrap"><button type="button" class="category-cover category-cover-open${coverEmptyClass}" onclick="openCategoryDetail('${category.id}')" aria-label="Abrir categoria ${escapeHtml(cat)}">${coverInner}</button><button type="button" class="category-cover-add-btn" onclick="event.stopPropagation(); addItemFromCategory('${category.id}')" aria-label="Adicionar item em ${escapeHtml(cat)}"><span aria-hidden="true">+</span></button></div><div class="category-card-content"><div class="category-title-row"><span class="category-symbol" aria-hidden="true">${escapeHtml(initials)}</span><h4 class="category-title-name">${escapeHtml(cat)}</h4><button type="button" class="text-action category-card-edit-btn" onclick="openCategoryEditor('${category.id}')">Editar</button></div></div></article>`;
   }).join("");
 }
 
