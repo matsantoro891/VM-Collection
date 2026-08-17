@@ -24,6 +24,8 @@ let itemCustomFieldsBoundCategory = "";
 let editingCategoryId = "";
 let activeCategoryDetailId = "";
 let savingCategoryMedia = false;
+let categoriesSearchQuery = "";
+let categoriesSearchOpen = false;
 const categoryDetailState = {
   isOpen: false,
   resumeAfterEdit: null,
@@ -1716,17 +1718,66 @@ function renderCatalog() {
   $("selectionCount").textContent = filtered.length;
 }
 
+function openCategoriesSearch() {
+  categoriesSearchOpen = true;
+  const shell = $("categoryLocate");
+  const field = $("categoryLocateField");
+  const input = $("categoriesSearchInput");
+  shell?.classList.add("is-active");
+  if (field) field.hidden = false;
+  if (input) {
+    input.value = categoriesSearchQuery;
+    requestAnimationFrame(() => {
+      try { input.focus({ preventScroll: true }); } catch (_) { input.focus(); }
+    });
+  }
+}
+
+function closeCategoriesSearch({ clear = true } = {}) {
+  categoriesSearchOpen = false;
+  if (clear) categoriesSearchQuery = "";
+  const shell = $("categoryLocate");
+  const field = $("categoryLocateField");
+  const input = $("categoriesSearchInput");
+  shell?.classList.remove("is-active");
+  if (field) field.hidden = true;
+  if (input) input.value = categoriesSearchQuery;
+  renderCategories();
+}
+
+function syncCategoriesSearchUI() {
+  const shell = $("categoryLocate");
+  const field = $("categoryLocateField");
+  const input = $("categoriesSearchInput");
+  const open = categoriesSearchOpen || Boolean(normalizeSearchInput(categoriesSearchQuery));
+  categoriesSearchOpen = open;
+  shell?.classList.toggle("is-active", open);
+  if (field) field.hidden = !open;
+  if (input && input.value !== categoriesSearchQuery) input.value = categoriesSearchQuery;
+}
+
 function renderCategories() {
   const grouped = getCategoryGroups().sort((a, b) => b.count - a.count);
-  const cats = grouped.map((g) => g.cat);
-  $("categoriesTotal").textContent = cats.length;
-  $("categoryCards").innerHTML = grouped.length ? grouped.map(({ cat, category, count: groupLength }) => {
+  const query = normalizeSearchInput(categoriesSearchQuery);
+  const filtered = query
+    ? grouped.filter(({ cat }) => normalizeSearchInput(cat).includes(query))
+    : grouped;
+  syncCategoriesSearchUI();
+  if (!grouped.length) {
+    $("categoryCards").innerHTML = emptyHtml();
+    return;
+  }
+  if (!filtered.length) {
+    $("categoryCards").innerHTML = '<div class="empty"><span class="empty-symbol">◇</span><strong>Nenhuma categoria encontrada.</strong></div>';
+    return;
+  }
+  $("categoryCards").innerHTML = filtered.map(({ cat, category, count: groupLength }) => {
     const initials = categoryInitials(cat);
     const media = category.image
       ? `<button type="button" class="category-cover category-cover-open" onclick="openCategoryDetail('${category.id}')" aria-label="Abrir categoria ${escapeHtml(cat)}"><img src="${category.image}" alt="" onerror="this.closest('.category-cover').classList.add('category-cover-empty');this.remove()"></button>`
       : `<button type="button" class="category-cover category-cover-open category-cover-empty" onclick="openCategoryDetail('${category.id}')" aria-label="Abrir categoria ${escapeHtml(cat)}"></button>`;
     return `<article class="category-card">${media}<div class="category-card-content"><div class="category-title-row"><span class="category-symbol" aria-hidden="true">${escapeHtml(initials)}</span><h4 class="category-title-name">${escapeHtml(cat)}</h4><span class="category-count">(${formatItemCount(groupLength)})</span></div><div class="category-card-actions"><button type="button" class="secondary-btn" onclick="openCategoryDetail('${category.id}')">Abrir</button><button type="button" class="primary-btn" onclick="addItemFromCategory('${category.id}')">Adicionar item</button><button type="button" class="text-action" onclick="openCategoryEditor('${category.id}')">Editar</button></div></div></article>`;
-  }).join("") : emptyHtml();
+  }).join("");
 }
 
 function openCategoryCreator() {
@@ -3678,6 +3729,13 @@ async function initializePersistentApp() {
   $("createCategoryBtn")?.addEventListener("click", openCategoryCreator);
   $("homeCreateCategoryPrimaryBtn")?.addEventListener("click", openCategoryCreator);
   $("homeCreateCategoryBtn")?.addEventListener("click", () => showView("categoriesView"));
+  $("categoryLocateTrigger")?.addEventListener("click", openCategoriesSearch);
+  $("categoriesSearchInput")?.addEventListener("input", (e) => {
+    categoriesSearchQuery = String(e.target.value || "");
+    categoriesSearchOpen = true;
+    renderCategories();
+  });
+  $("categoriesSearchClear")?.addEventListener("click", () => closeCategoriesSearch({ clear: true }));
   $("categoryNameInput")?.addEventListener("input", () => clearCategoryFormValidation("name"));
   $("categoryMediaForm").addEventListener("submit", async (e) => { e.preventDefault(); await saveCategoryMedia(); });
   setupCategoryCustomFieldsEditor();

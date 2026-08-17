@@ -8,11 +8,11 @@
   <meta name="apple-mobile-web-app-title" content="VM Life ARCHIVE" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
   <title>VM Life ARCHIVE</title>
-  <meta name="vm-asset-version" content="202608045" />
+  <meta name="vm-asset-version" content="202608046" />
   <link rel="manifest" href="manifest.webmanifest" />
   <link rel="apple-touch-icon" href="assets/icon-180.png" />
   <link rel="icon" href="assets/icon-192.png" />
-  <link rel="stylesheet" href="styles.css?v=202608045" />
+  <link rel="stylesheet" href="styles.css?v=202608046" />
 </head>
 <body>
   <div id="appShell">
@@ -268,7 +268,17 @@
           <div class="banner-icon" id="bannerCategoryIcon"></div>
         </div>
         <div class="category-summary-row">
-          <article class="metric-card dark-metric metric-card-inline"><span>Categorias:</span><strong id="categoriesTotal">0</strong></article>
+          <div class="category-locate metric-card dark-metric" id="categoryLocate">
+            <button type="button" class="category-locate-trigger" id="categoryLocateTrigger" aria-label="Localizar categorias">
+              <span class="category-locate-icon" aria-hidden="true">⌕</span>
+              <span>Localizar</span>
+            </button>
+            <label class="category-locate-field" id="categoryLocateField" hidden for="categoriesSearchInput">
+              <span class="category-locate-icon" aria-hidden="true">⌕</span>
+              <input id="categoriesSearchInput" type="search" placeholder="Nome da categoria" autocomplete="off" enterkeyhint="search" aria-label="Localizar categorias" />
+              <button type="button" class="category-locate-clear" id="categoriesSearchClear" aria-label="Fechar busca">×</button>
+            </label>
+          </div>
         </div>
         <div class="section-title with-action categories-list-title">
           <h3>Suas categorias</h3>
@@ -591,6 +601,6 @@
 
   <template id="emptyTemplate"><div class="empty"><span class="empty-symbol">◇</span><strong>Nenhum item por aqui ainda.</strong><p>Use “Adicionar item” para começar sua coleção.</p></div></template>
   <script src="storage.js?v=202606208"></script>
-  <script src="app.js?v=202608045"></script>
+  <script src="app.js?v=202608046"></script>
 </body>
 </html>
