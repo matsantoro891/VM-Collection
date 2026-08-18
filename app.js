@@ -37,6 +37,9 @@ let catalogAppliedFilters = { terms: [], categoryId: "", classification: "all", 
 let catalogHasSearched = false;
 const CATEGORY_VIEW_STORAGE_KEY = "vmCollection.categoryViewMode";
 let categoryViewMode = normalizeCategoryViewMode(localStorage.getItem(CATEGORY_VIEW_STORAGE_KEY));
+let addViewReturnContext = null;
+let addViewHistoryLock = false;
+const pdfViewerState = { url: "", blob: null, filename: "", title: "" };
 const globalSearchState = { isOpen: false };
 
 const $ = (id) => document.getElementById(id);
@@ -70,6 +73,7 @@ function iconSvg(type) {
     calendar: `<svg viewBox="0 0 24 24"><rect ${c} x="3" y="5" width="18" height="16" rx="2"/><path ${c} d="M7 3v4m10-4v4M3 10h18"/></svg>`,
     search: `<svg viewBox="0 0 24 24"><circle ${c} cx="11" cy="11" r="6"/><path ${c} d="m16.5 16.5 4 4"/></svg>`,
     home: `<svg viewBox="0 0 24 24"><path ${c} d="M4 10.5 12 4l8 6.5V20a1 1 0 0 1-1 1h-5v-6H10v6H5a1 1 0 0 1-1-1v-9.5Z"/></svg>`,
+    download: `<svg viewBox="0 0 24 24"><path ${c} d="M12 3v12m0 0 4-4m-4 4-4-4M5 21h14"/></svg>`,
     vitrine: `<svg viewBox="0 0 24 24"><rect ${c} x="4" y="3" width="16" height="18" rx="1.5"/><path ${c} d="M4 8h16M8 8v13m8-13v13M9 12h2m4 0h2m-6 4h2m4 0h2"/></svg>`,
     estante: `<svg viewBox="0 0 24 24"><path ${c} d="M4 4h16v3H4zm0 6.5h16v3H4zm0 6.5h16v3H4z"/><path ${c} d="M6 5.5h3M6 12h4M6 18.5h3"/></svg>`
   };
@@ -85,7 +89,9 @@ function setStaticIcons() {
     navHomeIcon: "home", navSearchIcon: "search", navCategoryIcon: "grid", navProfileIcon: "profile",
     homeYourCategoriesIcon: "grid",
     categoryCoverBtnIcon: "camera",
-    categoryViewVitrineIcon: "vitrine", categoryViewEstanteIcon: "estante"
+    categoryViewVitrineIcon: "vitrine", categoryViewEstanteIcon: "estante",
+    itemPhotoBtnIcon: "camera", itemFileBtnIcon: "file",
+    pdfViewerDownloadIcon: "download"
   };
   Object.entries(map).forEach(([id, type]) => { if ($(id)) $(id).innerHTML = iconSvg(type); });
 }
@@ -1031,7 +1037,7 @@ function formatFileSize(bytes) {
 }
 
 function renderAttachmentRows(list, ownerType = "draft", ownerId = "") {
-  if (!list?.length) return '<div class="attachment-empty">Nenhum arquivo anexado.</div>';
+  if (!list?.length) return ownerType === "itemDraft" ? "" : '<div class="attachment-empty">Nenhum arquivo anexado.</div>';
   return list.map((file) => `<div class="attachment-row"><div class="attachment-file-icon">${file.type.includes("pdf") ? "PDF" : file.type.startsWith("image/") ? "IMG" : "DOC"}</div><div class="attachment-file-copy"><strong>${escapeHtml(file.name)}</strong><small>${escapeHtml(file.type)} · ${formatFileSize(file.size)} · ${new Date(file.addedAt).toLocaleDateString("pt-BR")}</small></div><div class="attachment-actions"><button type="button" onclick="openStoredAttachment('${ownerType}','${ownerId}','${file.id}')">Visualizar</button><button type="button" onclick="downloadStoredAttachment('${ownerType}','${ownerId}','${file.id}')">Baixar</button>${ownerType === "itemDraft" ? `<button type="button" class="remove-file" onclick="removeItemDraftAttachment('${file.id}')">Remover</button>` : ownerType === "categoryDraft" ? `<button type="button" class="remove-file" onclick="removeCategoryDraftAttachment('${file.id}')">Remover</button>` : ""}</div></div>`).join("");
 }
 
@@ -1098,6 +1104,12 @@ function removeCategoryDraftAttachment(id) {
 }
 
 function showView(id, options = {}) {
+  const leavingAdd = $("addView")?.classList.contains("active") && id !== "addView";
+  if (leavingAdd && addViewReturnContext) {
+    addViewReturnContext = null;
+    updateAddViewBackButton();
+    consumeAddViewHistory();
+  }
   document.querySelectorAll(".view").forEach((v) => v.classList.toggle("active", v.id === id));
   document.querySelectorAll(".nav-item").forEach((b) => b.classList.toggle("active", b.dataset.go === id));
   $("appShell")?.classList.toggle("is-add-view", id === "addView");
@@ -1107,7 +1119,55 @@ function showView(id, options = {}) {
   if (id === "categoriesView") renderCategories();
   if (id === "homeView") renderHome();
   if (id === "catalogView") renderCatalog();
-  window.scrollTo({ top: 0, behavior: "smooth" });
+  if (id === "addView") resetAddViewScroll();
+  else window.scrollTo({ top: 0, behavior: "smooth" });
+}
+
+function resetAddViewScroll() {
+  const apply = () => {
+    document.activeElement?.blur?.();
+    const instant = { top: 0, left: 0, behavior: "instant" };
+    try { window.scrollTo(instant); } catch (_) { window.scrollTo(0, 0); }
+    document.documentElement.scrollTop = 0;
+    document.body.scrollTop = 0;
+    const addView = $("addView");
+    if (addView) addView.scrollTop = 0;
+    const shell = $("appShell");
+    if (shell) shell.scrollTop = 0;
+  };
+  apply();
+  requestAnimationFrame(() => {
+    apply();
+    requestAnimationFrame(apply);
+  });
+  setTimeout(apply, 50);
+}
+
+function updateAddViewBackButton() {
+  const btn = $("addViewBackBtn");
+  if (!btn) return;
+  const visible = Boolean(addViewReturnContext?.categoryId);
+  btn.hidden = !visible;
+}
+
+function pushAddViewHistory(categoryId) {
+  if (history.state?.vmAddFromCategory === categoryId) return;
+  history.pushState({ vmAddFromCategory: categoryId }, "");
+}
+
+function consumeAddViewHistory() {
+  if (!history.state?.vmAddFromCategory) return;
+  addViewHistoryLock = true;
+  history.back();
+}
+
+function returnToAddOrigin({ fromPopstate = false } = {}) {
+  const categoryId = addViewReturnContext?.categoryId;
+  addViewReturnContext = null;
+  updateAddViewBackButton();
+  clearForm();
+  if (!fromPopstate) consumeAddViewHistory();
+  if (categoryId) openCategoryDetail(categoryId, { preservePageScroll: true });
 }
 
 function itemBadges(item) {
@@ -1998,9 +2058,13 @@ function addItemFromCategory(categoryId) {
   if (!categoryName) return;
   closeCategoryDetailDialog();
   clearForm();
+  addViewReturnContext = { type: "category", categoryId };
+  updateAddViewBackButton();
+  pushAddViewHistory(categoryId);
   syncCategoryComboboxCommitted(categoryName);
   handleItemCategoryChange(categoryName, { force: true });
   showView("addView");
+  resetAddViewScroll();
 }
 
 function renderCategoryImagePreview() {
@@ -2731,6 +2795,7 @@ function clearForm() {
   syncCategoryComboboxCommitted("");
   $("formTitle").textContent = "Adicionar item";
   $("cancelEditBtn").hidden = true;
+  if (!addViewReturnContext?.categoryId) updateAddViewBackButton();
   if (memoryAudioRecorderState.recording) stopMemoryAudioRecording();
   setMemoryAudioStatus("", { hidden: true });
   renderMediaSection();
@@ -2748,28 +2813,6 @@ const ITEM_FORM_TEXT_FIELDS = [
 ];
 
 const ACQUISITION_LEGACY_FIELDS = ["paidValue", "estimatedValue", "acquiredAt", "acquiredPlace"];
-
-function setAcquiredAtFormValue(value = "") {
-  const normalized = String(value || "");
-  if ($("acquiredAt")) $("acquiredAt").value = normalized;
-  if ($("acquiredAtPrimary")) $("acquiredAtPrimary").value = normalized;
-}
-
-function syncAcquiredAtFields(sourceId) {
-  const source = $(sourceId);
-  if (!source) return;
-  const targetId = sourceId === "acquiredAt" ? "acquiredAtPrimary" : "acquiredAt";
-  const target = $(targetId);
-  if (!target || target.value === source.value) return;
-  target.value = source.value;
-}
-
-function setupAcquiredAtSync() {
-  ["acquiredAt", "acquiredAtPrimary"].forEach((id) => {
-    $(id)?.addEventListener("input", () => syncAcquiredAtFields(id));
-    $(id)?.addEventListener("change", () => syncAcquiredAtFields(id));
-  });
-}
 
 function readForm() {
   const existing = items.find((i) => i.id === $("editingId").value);
@@ -2823,10 +2866,8 @@ function readForm() {
 
 function fillForm(item) {
   ITEM_FORM_TEXT_FIELDS.forEach((id) => {
-    if (id === "acquiredAt") return;
     if ($(id)) $(id).value = item[id] || "";
   });
-  setAcquiredAtFormValue(item.acquiredAt || "");
   $("editingId").value = item.id;
   $("favorite").checked = !!item.favorite; $("desired").checked = !!item.desired; $("rare").checked = !!item.rare;
   currentPhotos = itemPhotosFromRaw(item);
@@ -2837,6 +2878,11 @@ function fillForm(item) {
   syncCategoryComboboxCommitted(item.category || "");
   $("formTitle").textContent = "Editar item";
   $("cancelEditBtn").hidden = false;
+  if (itemDetailState.resumeAfterEdit?.categoryId) {
+    addViewReturnContext = { type: "category", categoryId: itemDetailState.resumeAfterEdit.categoryId };
+    pushAddViewHistory(itemDetailState.resumeAfterEdit.categoryId);
+  }
+  updateAddViewBackButton();
   if (memoryAudioRecorderState.recording) stopMemoryAudioRecording();
   setMemoryAudioStatus("", { hidden: true });
   renderMediaSection();
@@ -2844,6 +2890,7 @@ function fillForm(item) {
   renderMemoryAudioList();
   handleItemCategoryChange(item.category || "", { force: true });
   showView("addView");
+  resetAddViewScroll();
 }
 
 function formatItemDateTime(value) {
@@ -3205,9 +3252,10 @@ function buildCatalogPdfDocument(selectedItems, options = {}) {
     : `Termos: ${escapeHtml(termsLabel)}<br>Categoria: ${escapeHtml(filterCategoryLabel)}<br>Classificação: ${escapeHtml(classificationLabel)}<br>Período: ${escapeHtml(periodLabel)}<br>Ordem: ${escapeHtml(sortLabel)}<br>Gerado em ${generatedAt}`;
   const coverCategoryBox = `${selectedItems.length} item(ns)`;
 
-  const rows = selectedItems.map((item, index) => {
-    const image = item.photo
-      ? `<img src="${item.photo}" alt="${escapeHtml(item.name)}">`
+  const catalogRows = selectedItems.map((item, index) => {
+    const photos = itemPhotosFromRaw(item);
+    const image = photos[0]
+      ? `<img src="${photos[0]}" alt="${escapeHtml(item.name)}">`
       : `<div class="item-no-image">VM</div>`;
     const markers = [item.favorite ? "Favorito" : "", item.desired ? "Desejado" : "", item.rare ? "Raro" : ""].filter(Boolean).join(" • ");
     const primaryMeta = [item.category, item.year].filter(Boolean).map(escapeHtml).join(" • ") || "Sem categoria";
@@ -3224,6 +3272,51 @@ function buildCatalogPdfDocument(selectedItems, options = {}) {
         </div>
       </article>`;
   }).join("");
+
+  const categoryItemPages = [];
+  if (mode === "category") {
+    const coverThumb = categoryImage
+      ? `<img class="item-page-cover" src="${categoryImage}" alt="Capa de ${escapeHtml(categoryName)}">`
+      : "";
+    for (let i = 0; i < selectedItems.length; i += 6) {
+      const slice = selectedItems.slice(i, i + 6);
+      const cards = slice.map((item) => {
+        const photos = itemPhotosFromRaw(item);
+        const image = photos[0]
+          ? `<img src="${photos[0]}" alt="${escapeHtml(item.name || "Item")}">`
+          : `<div class="item-no-image">VM</div>`;
+        const markers = [item.favorite ? "Favorito" : "", item.desired ? "Desejado" : "", item.rare ? "Raro" : ""].filter(Boolean).join(" • ");
+        const primaryMeta = [item.year].filter(Boolean).map(escapeHtml).join(" • ");
+        const detailLines = buildPdfItemDetailLines(item);
+        return `<article class="item-card-pdf">
+          <div class="item-card-photo">${image}</div>
+          <div class="item-card-copy">
+            <h3>${escapeHtml(item.name || "Item sem nome")}</h3>
+            ${primaryMeta ? `<p class="primary-meta">${primaryMeta}</p>` : ""}
+            ${markers ? `<p class="markers">${escapeHtml(markers)}</p>` : ""}
+            ${detailLines ? `<div class="pdf-detail-block">${detailLines}</div>` : ""}
+          </div>
+        </article>`;
+      }).join("");
+      categoryItemPages.push(`<section class="item-page">
+        <header class="item-page-header">
+          <div class="item-page-header-inner">${coverThumb}<h2>${escapeHtml(coverTitle)}</h2></div>
+        </header>
+        <div class="item-page-grid">${cards}</div>
+      </section>`);
+    }
+  }
+
+  const innerPages = mode === "category"
+    ? categoryItemPages.join("")
+    : `<main class="catalog-pages">
+        <header class="list-header">
+          <div class="list-header-left"><img src="${appLogo}" alt="Logo"><div><h2>${escapeHtml(coverTitle)}</h2><p>${escapeHtml(personName)} - ${escapeHtml(listSubtitle)}</p></div></div>
+          <div class="list-count"><span>Total da seleção</span><strong>${selectedItems.length}</strong></div>
+        </header>
+        ${catalogRows}
+        <div class="list-footer">${APP_DISPLAY_NAME} - ${escapeHtml(personName)} - ${generatedAt}</div>
+      </main>`;
 
   const categoryCoverHtml = mode === "category" && categoryImage
     ? `<div class="cover-category-image"><img src="${categoryImage}" alt="Capa de ${escapeHtml(categoryName)}"></div>`
@@ -3283,7 +3376,21 @@ function buildCatalogPdfDocument(selectedItems, options = {}) {
       .pdf-detail-block{margin-top:2mm}.pdf-detail-line{margin:0 0 1mm;font-size:8pt;color:#4d5563;line-height:1.45}
       .row-value{text-align:right}.row-value span{display:block;color:#6d7280;font-size:7.5pt}.row-value strong{display:block;color:#07111f;font-size:10.5pt;margin-top:1mm}
       .list-footer{margin-top:7mm;padding-top:4mm;border-top:1px solid #e7dece;text-align:center;color:#9a8c78;font-size:8pt}
-      @media print{body{-webkit-print-color-adjust:exact;print-color-adjust:exact}.cover,.cover-card,.catalog-row{break-inside:avoid}}
+      .item-page{width:210mm;min-height:297mm;padding:15mm;background:#fff;page-break-after:always;break-after:page;display:flex;flex-direction:column}
+      .item-page:last-of-type{page-break-after:auto;break-after:auto}
+      .item-page-header{display:flex;justify-content:center;align-items:center;margin:0 0 7mm;padding:0 0 5mm;border-bottom:1px solid #d8c7aa}
+      .item-page-header-inner{display:flex;align-items:center;justify-content:center;gap:5mm;max-width:100%}
+      .item-page-cover{width:18mm;height:18mm;border-radius:4mm;object-fit:cover;flex-shrink:0;border:1px solid rgba(180,134,62,.35);box-shadow:0 1mm 3mm rgba(7,17,31,.08)}
+      .item-page-header h2{font-family:Georgia,"Times New Roman",serif;margin:0;font-size:20pt;color:#07111f;text-align:center;line-height:1.1}
+      .item-page-grid{flex:1;display:grid;grid-template-columns:1fr 1fr;grid-template-rows:repeat(3,minmax(0,1fr));grid-auto-flow:column;gap:5mm;min-height:0}
+      .item-card-pdf{display:grid;grid-template-columns:28mm minmax(0,1fr);gap:3.5mm;align-items:start;padding:3.5mm;border:1px solid #e7dece;border-radius:4mm;background:#fffdfa;min-height:0;overflow:hidden;break-inside:avoid}
+      .item-card-photo{width:28mm;height:28mm;border-radius:3mm;overflow:hidden;background:#eee6da;display:grid;place-items:center}
+      .item-card-photo img{width:100%;height:100%;object-fit:cover;display:block}
+      .item-card-copy{min-width:0}
+      .item-card-copy h3{font-family:Georgia,"Times New Roman",serif;margin:0 0 1.2mm;font-size:11pt;color:#07111f;line-height:1.2}
+      .item-card-copy .pdf-detail-block{max-height:28mm;overflow:hidden}
+      .item-card-copy .pdf-detail-line{font-size:7.5pt;margin:0 0 .6mm}
+      @media print{body{-webkit-print-color-adjust:exact;print-color-adjust:exact}.cover,.cover-card,.catalog-row,.item-card-pdf{break-inside:avoid}.item-page{page-break-after:always}}
     </style>
   </head>
   <body>
@@ -3305,16 +3412,58 @@ function buildCatalogPdfDocument(selectedItems, options = {}) {
       </div>
       <div class="cover-footer">${APP_DISPLAY_NAME} - Seu acervo digital</div>
     </section>
-    <main class="catalog-pages">
-      <header class="list-header">
-        <div class="list-header-left"><img src="${appLogo}" alt="Logo"><div><h2>${escapeHtml(coverTitle)}</h2><p>${escapeHtml(personName)} - ${escapeHtml(listSubtitle)}</p></div></div>
-        <div class="list-count"><span>Total da seleção</span><strong>${selectedItems.length}</strong></div>
-      </header>
-      ${rows}
-      <div class="list-footer">${APP_DISPLAY_NAME} - ${escapeHtml(personName)} - ${generatedAt}</div>
-    </main>
+    ${innerPages}
   </body>
   </html>`;
+}
+
+function closePdfViewer() {
+  const dialog = $("pdfViewerDialog");
+  const frame = $("pdfViewerFrame");
+  if (frame) frame.src = "about:blank";
+  if (pdfViewerState.url) {
+    URL.revokeObjectURL(pdfViewerState.url);
+    pdfViewerState.url = "";
+  }
+  pdfViewerState.blob = null;
+  pdfViewerState.filename = "";
+  pdfViewerState.title = "";
+  if (dialog?.open) dialog.close();
+}
+
+async function downloadPdfViewerDocument() {
+  const iframeWin = $("pdfViewerFrame")?.contentWindow;
+  const blob = pdfViewerState.blob;
+  const filename = pdfViewerState.filename || "catalogo.html";
+  if (blob) {
+    const file = new File([blob], filename, { type: "text/html" });
+    try {
+      if (navigator.share && navigator.canShare?.({ files: [file] })) {
+        await navigator.share({
+          title: pdfViewerState.title || APP_DISPLAY_NAME,
+          text: "Catálogo gerado pelo VM Life ARCHIVE.",
+          files: [file]
+        });
+        return;
+      }
+    } catch (error) {
+      if (error?.name === "AbortError") return;
+    }
+  }
+  if (iframeWin) {
+    iframeWin.focus();
+    iframeWin.print();
+    return;
+  }
+  if (!blob) return;
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 30000);
 }
 
 function openCatalogPdfWindow(selectedItems, options = {}) {
@@ -3325,19 +3474,22 @@ function openCatalogPdfWindow(selectedItems, options = {}) {
   const docTitle = options.mode === "category"
     ? `${APP_DISPLAY_NAME} - ${options.categoryName || options.title || "Categoria"}`
     : `${APP_DISPLAY_NAME} - Localizar itens`;
-  const printWindow = window.open("", "_blank");
-  if (!printWindow) {
-    alert(`O navegador bloqueou a janela do PDF. Permita pop-ups para o ${APP_DISPLAY_NAME} e tente novamente.`);
-    return;
-  }
-  printWindow.document.open();
-  printWindow.document.write(buildCatalogPdfDocument(selectedItems, options));
-  printWindow.document.close();
-  printWindow.document.title = docTitle;
-  printWindow.focus();
-  const triggerPrint = () => setTimeout(() => printWindow.print(), 650);
-  if (printWindow.document.readyState === "complete") triggerPrint();
-  else printWindow.addEventListener("load", triggerPrint, { once: true });
+  const html = buildCatalogPdfDocument(selectedItems, options);
+  const blob = new Blob([html], { type: "text/html;charset=utf-8" });
+  const safeName = String(options.categoryName || options.title || "catalogo")
+    .normalize("NFD").replace(/\p{M}/gu, "")
+    .replace(/[^\w]+/g, "-")
+    .replace(/^-|-$/g, "")
+    .slice(0, 40) || "catalogo";
+  closePdfViewer();
+  pdfViewerState.blob = blob;
+  pdfViewerState.filename = `VM-Life-ARCHIVE-${safeName}.html`;
+  pdfViewerState.title = docTitle;
+  pdfViewerState.url = URL.createObjectURL(blob);
+  if ($("pdfViewerTitle")) $("pdfViewerTitle").textContent = options.categoryName || options.title || "PDF";
+  const frame = $("pdfViewerFrame");
+  if (frame) frame.src = pdfViewerState.url;
+  $("pdfViewerDialog")?.showModal();
 }
 
 function generateCatalogPdf() {
@@ -3649,13 +3801,21 @@ async function initializePersistentApp() {
     if (!item.name) return alert("Preencha ao menos um dos campos principais.");
     const idx = items.findIndex((i) => i.id === item.id);
     const resume = itemDetailState.resumeAfterEdit;
+    const returnCategoryId = resume?.categoryId || addViewReturnContext?.categoryId;
     if (idx >= 0) items[idx] = item; else items.unshift(item);
     try {
       await saveItems();
+      addViewReturnContext = null;
+      updateAddViewBackButton();
+      consumeAddViewHistory();
       clearForm();
       if (resume?.categoryId) {
         itemDetailState.resumeAfterEdit = { ...resume, itemId: item.id };
         resumeCategoryItemView();
+        return;
+      }
+      if (returnCategoryId) {
+        openCategoryDetail(returnCategoryId, { preservePageScroll: true });
         return;
       }
       showView("catalogView");
@@ -3668,9 +3828,15 @@ async function initializePersistentApp() {
   $("clearFormBtn").addEventListener("click", clearForm);
   $("cancelEditBtn").addEventListener("click", () => {
     const resume = itemDetailState.resumeAfterEdit;
+    if (addViewReturnContext?.categoryId) {
+      returnToAddOrigin();
+      return;
+    }
     clearForm();
     if (resume?.categoryId) resumeCategoryItemView();
   });
+  $("addViewBackBtn")?.addEventListener("click", () => returnToAddOrigin());
+  $("itemFileBtn")?.addEventListener("click", () => $("itemFilesInput")?.click());
   $("removeMediaBtn").addEventListener("click", () => { currentPhotos = []; currentVideo = ""; renderMediaSection(); });
   $("clearFiltersBtn").addEventListener("click", clearFilters);
   $("searchCatalogBtn").addEventListener("click", applyCatalogFilters);
@@ -3799,8 +3965,28 @@ async function initializePersistentApp() {
   setupDeleteCategoryDialog();
   setupGlobalSearchDialog();
   setupMemoryAudioRecorder();
-  setupAcquiredAtSync();
+  setupPdfViewer();
+  updateAddViewBackButton();
   updateCategoryViewSwitcherUI();
 }
+
+function setupPdfViewer() {
+  $("pdfViewerCloseBtn")?.addEventListener("click", closePdfViewer);
+  $("pdfViewerDownloadBtn")?.addEventListener("click", () => { downloadPdfViewerDocument(); });
+  $("pdfViewerDialog")?.addEventListener("cancel", (e) => {
+    e.preventDefault();
+    closePdfViewer();
+  });
+}
+
+window.addEventListener("popstate", () => {
+  if (addViewHistoryLock) {
+    addViewHistoryLock = false;
+    return;
+  }
+  if ($("addView")?.classList.contains("active") && addViewReturnContext?.categoryId) {
+    returnToAddOrigin({ fromPopstate: true });
+  }
+});
 
 document.addEventListener("DOMContentLoaded", initializePersistentApp);

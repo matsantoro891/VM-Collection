@@ -8,11 +8,11 @@
   <meta name="apple-mobile-web-app-title" content="VM Life ARCHIVE" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
   <title>VM Life ARCHIVE</title>
-  <meta name="vm-asset-version" content="202608047" />
+  <meta name="vm-asset-version" content="202608048" />
   <link rel="manifest" href="manifest.webmanifest" />
   <link rel="apple-touch-icon" href="assets/icon-180.png" />
   <link rel="icon" href="assets/icon-192.png" />
-  <link rel="stylesheet" href="styles.css?v=202608047" />
+  <link rel="stylesheet" href="styles.css?v=202608048" />
 </head>
 <body>
   <div id="appShell">
@@ -144,6 +144,10 @@
       <!-- CADASTRO -->
       <section id="addView" class="view">
         <div class="premium-page-banner add-banner compact-add-banner">
+          <button type="button" class="add-view-back-btn" id="addViewBackBtn" hidden>
+            <span aria-hidden="true">←</span>
+            <span>Voltar</span>
+          </button>
           <div class="page-banner-copy">
             <span class="eyebrow">NOVO CADASTRO</span>
             <h2 id="formTitle">Adicionar item</h2>
@@ -157,12 +161,21 @@
           <section class="form-section media-section">
             <div class="section-number">01</div>
             <div class="form-section-content">
-              <div class="form-section-head media-section-head" aria-label="Imagens do item"><div><span class="panel-kicker">IMAGENS DO ITEM</span></div><button class="text-action" id="removeMediaBtn" type="button">Remover mídia</button></div>
-              <div class="media-compact-panel">
-                <button type="button" class="media-add-btn" id="openMediaMenuBtn" aria-label="Adicionar mídia" aria-haspopup="dialog" aria-controls="mediaMenuDialog">
-                  <span class="media-add-btn-icon" id="mediaAddBtnIcon" aria-hidden="true"></span>
-                  <span class="media-add-btn-label">Adicionar mídia</span>
+              <div class="form-section-head media-section-head" aria-label="Mídias / Arquivos do item">
+                <div><span class="panel-kicker">MÍDIAS / ARQUIVOS DO ITEM</span></div>
+                <button class="text-action" id="removeMediaBtn" type="button">Remover mídia</button>
+              </div>
+              <div class="item-media-actions">
+                <button type="button" class="item-media-action-btn" id="openMediaMenuBtn" aria-label="Fotografia" aria-haspopup="dialog" aria-controls="mediaMenuDialog">
+                  <span class="item-media-action-icon" id="itemPhotoBtnIcon" aria-hidden="true"></span>
+                  <span>Fotografia</span>
                 </button>
+                <button type="button" class="item-media-action-btn" id="itemFileBtn" aria-label="Arquivo">
+                  <span class="item-media-action-icon" id="itemFileBtnIcon" aria-hidden="true"></span>
+                  <span>Arquivo</span>
+                </button>
+              </div>
+              <div class="media-compact-panel">
                 <p class="photo-limit-msg" id="photoLimitMsg" hidden role="status">Limite de 5 fotos atingido.</p>
                 <div id="photoThumbGrid" class="photo-thumb-grid" aria-live="polite"></div>
                 <div id="videoPreview" class="video-preview"></div>
@@ -170,14 +183,7 @@
               <input id="cameraInput" type="file" accept="image/*" capture="environment" hidden />
               <input id="galleryInput" type="file" accept="image/*" multiple hidden />
               <input id="mediaFileInput" type="file" multiple accept="image/*,.pdf,.doc,.docx,.xls,.xlsx,.txt,.zip" hidden />
-              <div class="persistent-files-panel" aria-label="Arquivos persistentes">
-                <div class="persistent-files-copy">
-                  <span class="panel-kicker">ARQUIVOS PERSISTENTES</span>
-                </div>
-                <label class="secondary-btn persistent-file-button" aria-label="Anexar arquivos">Anexar arquivos
-                  <input id="itemFilesInput" type="file" multiple accept="image/*,.pdf,.doc,.docx,.xls,.xlsx,.txt,.zip" hidden />
-                </label>
-              </div>
+              <input id="itemFilesInput" type="file" multiple accept="image/*,.pdf,.doc,.docx,.xls,.xlsx,.txt,.zip" hidden />
               <div id="itemAttachmentList" class="attachment-list"></div>
             </div>
           </section>
@@ -185,7 +191,7 @@
           <section class="form-section form-identification-section">
             <div class="section-number">02</div>
             <div class="form-section-content">
-              <div class="form-section-head"><div><span class="panel-kicker form-kicker-compact">DADOS DO ITEM</span><h3>Informações principais</h3></div></div>
+              <div class="form-section-head"><div><span class="panel-kicker">DADOS DO ITEM</span><h3>Informações principais</h3></div></div>
               <label class="item-category-picker" for="category">Categoria
                 <div class="category-combobox">
                   <input id="category" type="text" autocomplete="off" spellcheck="false" role="combobox" aria-expanded="false" aria-controls="categoryMenu" aria-autocomplete="list" placeholder="Selecione ou pesquise" />
@@ -201,7 +207,7 @@
             </div>
           </section>
 
-          <section class="form-section">
+          <section class="form-section form-flags-section">
             <div class="section-number">03</div>
             <div class="form-section-content">
               <div class="form-section-head"><div><span class="panel-kicker">CLASSIFICAÇÃO</span><h3>Marcadores especiais</h3></div></div>
@@ -231,24 +237,6 @@
                 <input id="storageLocation" type="hidden" />
                 <input id="eventDate" type="hidden" />
                 <input id="connectedItems" type="hidden" />
-              </div>
-            </div>
-          </section>
-
-          <section class="form-section" id="acquisitionFormSection" hidden aria-hidden="true">
-            <div class="section-number">05</div>
-            <div class="form-section-content">
-              <div class="form-section-head"><div><span class="panel-kicker">AQUISIÇÃO</span><h3>Valor</h3></div></div>
-              <div class="form-grid">
-                <label>Valor pago<input id="paidValue" type="number" min="0" step="0.01" /></label>
-                <label>Valor estimado atual<input id="estimatedValue" type="number" min="0" step="0.01" /></label>
-                <label>Data
-                  <div class="date-field-wrap">
-                    <input id="acquiredAt" type="date" aria-label="Data" />
-                    <span class="date-field-icon" aria-hidden="true"></span>
-                  </div>
-                </label>
-                <label>Local de aquisição<input id="acquiredPlace" /></label>
               </div>
             </div>
           </section>
@@ -526,7 +514,7 @@
         <span class="media-menu-item-icon" id="mediaMenuGalleryIcon" aria-hidden="true"></span>
         <span>Escolher da galeria</span>
       </button>
-      <button type="button" class="media-menu-item" id="mediaFileBtn" role="menuitem">
+      <button type="button" class="media-menu-item" id="mediaFileBtn" role="menuitem" hidden>
         <span class="media-menu-item-icon" id="mediaMenuFileIcon" aria-hidden="true"></span>
         <span>Escolher arquivo</span>
       </button>
@@ -596,8 +584,21 @@
     </div>
   </dialog>
 
+  <dialog id="pdfViewerDialog" class="pdf-viewer-dialog" aria-label="Visualização do PDF">
+    <div class="pdf-viewer-shell">
+      <header class="pdf-viewer-header">
+        <button type="button" class="pdf-viewer-download" id="pdfViewerDownloadBtn" aria-label="Salvar ou compartilhar PDF">
+          <span class="pdf-viewer-download-icon" id="pdfViewerDownloadIcon" aria-hidden="true"></span>
+        </button>
+        <span class="pdf-viewer-title" id="pdfViewerTitle">PDF</span>
+        <button type="button" class="pdf-viewer-close" id="pdfViewerCloseBtn" aria-label="Fechar PDF">×</button>
+      </header>
+      <iframe id="pdfViewerFrame" class="pdf-viewer-frame" title="Pré-visualização do catálogo em PDF"></iframe>
+    </div>
+  </dialog>
+
   <template id="emptyTemplate"><div class="empty"><span class="empty-symbol">◇</span><strong>Nenhum item por aqui ainda.</strong><p>Use “Adicionar item” para começar sua coleção.</p></div></template>
   <script src="storage.js?v=202606208"></script>
-  <script src="app.js?v=202608047"></script>
+  <script src="app.js?v=202608048"></script>
 </body>
 </html>

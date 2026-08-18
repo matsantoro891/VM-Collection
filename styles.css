@@ -201,18 +201,29 @@ svg{display:block;width:100%;height:100%}
 .banner-action{position:absolute;left:28px;bottom:24px;background:#fff;color:var(--ink);z-index:3;min-width:190px}
 .banner-action span{width:30px;height:30px;border-radius:50%;display:grid;place-items:center;background:var(--navy);color:#fff;font-size:1.25rem}
 .compact-banner{padding-bottom:85px}
-#addView .compact-add-banner{min-height:108px;padding:14px 18px 18px;margin-bottom:12px;max-width:100%}
+#addView .compact-add-banner{min-height:108px;padding:14px 18px 18px;margin-bottom:12px;max-width:100%;display:grid;grid-template-columns:1fr auto;grid-template-rows:auto auto;align-items:start}
+#addView .compact-add-banner .add-view-back-btn{grid-column:1;grid-row:1;justify-self:start;margin:0 0 8px;min-height:32px;padding:0 12px;border:1px solid rgba(208,165,95,.55);background:transparent;color:#fff;border-radius:999px;font-size:.78rem;font-weight:700;gap:6px;display:inline-flex;align-items:center}
+#addView .compact-add-banner .add-view-back-btn[hidden]{display:none !important}
+#addView .compact-add-banner .page-banner-copy{grid-column:1;grid-row:2;padding-right:8px}
+#addView .compact-add-banner .banner-icon{grid-column:2;grid-row:1 / span 2;width:46px;height:46px;margin:8px 0 0 8px;opacity:.82;align-self:center}
 #addView .compact-add-banner .page-banner-copy h2{font-size:clamp(1.15rem,4.2vw,1.55rem);line-height:1.05;margin:6px 0 0}
 #addView .compact-add-banner .eyebrow{font-size:.62rem;margin-bottom:2px}
-#addView .compact-add-banner .banner-icon{width:46px;height:46px;margin:8px 0 0 8px;opacity:.82}
 #addView .compact-add-banner:after{width:120px;height:120px;right:-36px;top:-40px}
-#addView .form-kicker-compact{font-size:.37rem;letter-spacing:.09em}
 #addView .form-identification-section .form-section-head h3{font-size:1.2rem}
-#addView .premium-form{padding-bottom:calc(110px + env(safe-area-inset-bottom, 0px));max-width:100%;min-width:0}
-/* Cadastro: remove a faixa navy lateral (.section-number) para ampliar o formulário no iPhone */
+#addView .form-flags-section .form-section-head h3{font-size:1.22rem;white-space:nowrap;line-height:1.15}
+#addView .premium-form{padding-bottom:calc(110px + env(safe-area-inset-bottom, 0px));max-width:100%;min-width:0;gap:12px}
 #addView .form-section{grid-template-columns:minmax(0,1fr)}
 #addView .section-number{display:none}
-#addView .form-section-content{padding:22px 18px}
+#addView .form-section-content{padding:16px 16px}
+#addView .form-section-head{margin-bottom:10px}
+.item-media-actions{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px}
+.item-media-action-btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:46px;padding:0 12px;border:1px solid var(--line);border-radius:18px;background:#fff;color:var(--ink);font-weight:750;font-size:.88rem;cursor:pointer}
+.item-media-action-btn:hover{border-color:var(--gold-soft);box-shadow:var(--shadow-soft)}
+.item-media-action-btn:active{transform:scale(.98)}
+.item-media-action-icon{width:28px;height:28px;border-radius:50%;display:grid;place-items:center;background:var(--navy);color:#fff;flex-shrink:0}
+.item-media-action-icon svg{width:16px;height:16px;display:block}
+#addView .attachment-list:empty{display:none}
+#addView .media-compact-panel{gap:8px}
 .premium-page-banner.category-banner{min-height:115px;padding:16px 22px 18px;align-items:center}
 .premium-page-banner.category-banner .page-banner-copy h2{font-size:clamp(1.35rem,4.2vw,2rem);line-height:1.05;margin:6px 0 0}
 .premium-page-banner.category-banner .banner-icon{width:52px;height:52px;margin:0 4px 0 8px;opacity:.88}
@@ -365,6 +376,32 @@ input:focus,select:focus,textarea:focus{border-color:var(--gold);box-shadow:0 0 
 .photo-viewer-slide.is-error .photo-viewer-frame img{display:none}
 .photo-viewer-error{display:none;color:rgba(255,255,255,.72);font-size:.92rem;text-align:center;padding:20px}
 .photo-viewer-slide.is-error .photo-viewer-error{display:block}
+dialog.pdf-viewer-dialog{
+  border:0;
+  padding:0;
+  margin:0;
+  inset:0;
+  max-width:none;
+  max-height:none;
+  width:100%;
+  height:100%;
+  height:100vh;
+  height:100dvh;
+  border-radius:0;
+  background:#070f1c;
+  overflow:hidden;
+}
+.pdf-viewer-dialog::backdrop{background:rgba(4,10,20,.92);backdrop-filter:blur(4px)}
+.pdf-viewer-shell{display:flex;flex-direction:column;width:100%;height:100%;background:#070f1c;padding:env(safe-area-inset-top,0) env(safe-area-inset-right,0) env(safe-area-inset-bottom,0) env(safe-area-inset-left,0);box-sizing:border-box}
+.pdf-viewer-header{position:relative;z-index:5;display:flex;align-items:center;justify-content:center;min-height:56px;flex-shrink:0;padding:8px 56px;background:rgba(7,15,28,.96)}
+.pdf-viewer-title{font-size:.92rem;font-weight:750;color:rgba(255,255,255,.9);max-width:60%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;text-align:center}
+.pdf-viewer-close,.pdf-viewer-download{position:absolute;top:50%;transform:translateY(-50%);width:44px;height:44px;border:0;border-radius:50%;background:rgba(255,255,255,.12);color:#fff;font-size:1.55rem;line-height:1;cursor:pointer;display:grid;place-items:center;z-index:6}
+.pdf-viewer-close{right:max(12px,env(safe-area-inset-right,0))}
+.pdf-viewer-download{left:max(12px,env(safe-area-inset-left,0));padding:10px}
+.pdf-viewer-download-icon{width:22px;height:22px;display:grid;place-items:center}
+.pdf-viewer-download-icon svg{width:22px;height:22px;display:block}
+.pdf-viewer-close:focus-visible,.pdf-viewer-download:focus-visible{outline:2px solid var(--gold-soft);outline-offset:2px}
+.pdf-viewer-frame{flex:1;width:100%;min-height:0;border:0;background:#f7f3ec}
 .photo-viewer-nav{width:44px;height:44px;border:0;border-radius:50%;background:rgba(255,255,255,.12);color:#fff;font-size:1.8rem;line-height:1;cursor:pointer;display:grid;place-items:center;flex-shrink:0;transition:opacity .15s ease,background .15s ease}
 .photo-viewer-nav:hover{background:rgba(255,255,255,.2)}
 .photo-viewer-nav:focus-visible{outline:2px solid var(--gold-soft);outline-offset:2px}
@@ -576,7 +613,7 @@ dialog::backdrop{background:rgba(8,18,34,.63);backdrop-filter:blur(5px)}
   .premium-page-banner.catalog-banner{min-height:auto;padding:24px 20px 24px}
   #addView .compact-add-banner{min-height:96px;padding:12px 16px 16px;margin-bottom:10px}
   #addView .compact-add-banner .page-banner-copy h2{font-size:1.2rem}
-  #addView .compact-add-banner .banner-icon{width:40px;height:40px;top:18px;right:14px}
+  #addView .compact-add-banner .banner-icon{width:40px;height:40px;margin:4px 0 0 8px;position:relative;top:auto;right:auto}
   .premium-page-banner.category-banner{min-height:108px;padding:14px 16px 16px}
   .premium-page-banner.category-banner .page-banner-copy h2{font-size:1.45rem}
   .premium-page-banner.category-banner .banner-icon{width:44px;height:44px;position:relative;right:auto;top:auto;margin:0;opacity:.85}
