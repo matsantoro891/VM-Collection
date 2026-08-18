@@ -1212,12 +1212,12 @@ function categoryInitials(name) {
   return String(name || "").split(/\s+/).filter(Boolean).slice(0, 2).map((x) => x[0]).join("").toUpperCase() || "VM";
 }
 
-function homeCategoryCard({ id, cat, category, count }) {
+function homeCategoryCard({ id, cat, category }) {
   const initials = categoryInitials(cat);
   const media = category.image
     ? `<div class="home-category-cover"><img src="${category.image}" alt="" onerror="this.remove()"></div>`
     : `<div class="home-category-cover home-category-cover-empty" aria-hidden="true"></div>`;
-  return `<button type="button" class="home-category-card" data-category-id="${escapeHtml(id)}" aria-label="Abrir categoria ${escapeHtml(cat)}">${media}<div class="home-category-body"><div class="category-title-row"><span class="category-symbol" aria-hidden="true">${escapeHtml(initials)}</span><h4 class="category-title-name">${escapeHtml(cat)}</h4><span class="category-count">(${formatItemCount(count)})</span></div></div></button>`;
+  return `<button type="button" class="home-category-card" data-category-id="${escapeHtml(id)}" aria-label="Abrir categoria ${escapeHtml(cat)}">${media}<div class="home-category-body"><div class="category-title-row"><span class="category-symbol" aria-hidden="true">${escapeHtml(initials)}</span><h4 class="category-title-name">${escapeHtml(cat)}</h4></div></div></button>`;
 }
 
 function homeCategoriesEmptyHtml() {
@@ -2339,14 +2339,22 @@ const photoViewerState = {
   panX: 0,
   panY: 0,
   minScale: 1,
-  maxScale: 4,
+  maxScale: 4.5,
   pinchStartDist: 0,
   pinchStartScale: 1,
+  pinchStartPanX: 0,
+  pinchStartPanY: 0,
+  pinchOriginX: 0,
+  pinchOriginY: 0,
+  pinchCenterX: 0,
+  pinchCenterY: 0,
   panStartX: 0,
   panStartY: 0,
   panOriginX: 0,
   panOriginY: 0,
   lastTapAt: 0,
+  lastTapX: 0,
+  lastTapY: 0,
   gesturing: false
 };
 
@@ -2374,14 +2382,49 @@ function applyPhotoViewerZoom() {
 }
 
 function clampPhotoViewerPan() {
-  if (photoViewerState.scale <= 1) {
+  if (photoViewerState.scale <= 1.01) {
     photoViewerState.panX = 0;
     photoViewerState.panY = 0;
     return;
   }
-  const maxPan = 180 * photoViewerState.scale;
-  photoViewerState.panX = Math.max(-maxPan, Math.min(maxPan, photoViewerState.panX));
-  photoViewerState.panY = Math.max(-maxPan, Math.min(maxPan, photoViewerState.panY));
+  const img = getActiveViewerImage();
+  const viewport = $("photoViewerViewport");
+  if (!img || !viewport) return;
+  const vw = viewport.clientWidth || 1;
+  const vh = viewport.clientHeight || 1;
+  const scaledW = img.offsetWidth * photoViewerState.scale;
+  const scaledH = img.offsetHeight * photoViewerState.scale;
+  const maxX = Math.max(0, (scaledW - vw) / 2);
+  const maxY = Math.max(0, (scaledH - vh) / 2);
+  photoViewerState.panX = Math.max(-maxX, Math.min(maxX, photoViewerState.panX));
+  photoViewerState.panY = Math.max(-maxY, Math.min(maxY, photoViewerState.panY));
+}
+
+function setPhotoViewerScaleAtPoint(nextScale, clientX, clientY) {
+  const current = Math.max(photoViewerState.scale, 0.001);
+  const target = Math.min(photoViewerState.maxScale, Math.max(photoViewerState.minScale, nextScale));
+  const img = getActiveViewerImage();
+  if (!img) {
+    photoViewerState.scale = target;
+    applyPhotoViewerZoom();
+    return;
+  }
+  const rect = img.getBoundingClientRect();
+  const dx = clientX - (rect.left + rect.width / 2);
+  const dy = clientY - (rect.top + rect.height / 2);
+  const factor = target / current;
+  photoViewerState.panX += dx * (1 - factor);
+  photoViewerState.panY += dy * (1 - factor);
+  photoViewerState.scale = target;
+  clampPhotoViewerPan();
+  applyPhotoViewerZoom();
+}
+
+function touchMidpoint(touches) {
+  return {
+    x: (touches[0].clientX + touches[1].clientX) / 2,
+    y: (touches[0].clientY + touches[1].clientY) / 2
+  };
 }
 
 function touchDistance(touches) {
@@ -2570,6 +2613,7 @@ function unlockPageScroll() {
 function closePhotoViewer() {
   const dialog = $("photoViewerDialog");
   if (!dialog?.open) return;
+  resetPhotoViewerZoom();
   dialog.close();
   unlockPageScroll();
   photoViewerState.photos = [];
@@ -2663,11 +2707,20 @@ function setupPhotoViewer() {
 
   viewport.addEventListener("touchstart", (e) => {
     if (e.touches.length === 2) {
+      const mid = touchMidpoint(e.touches);
+      const img = getActiveViewerImage();
+      const rect = img?.getBoundingClientRect();
       photoViewerState.gesturing = true;
       photoViewerState.touchActive = false;
       photoViewerState.swiping = false;
       photoViewerState.pinchStartDist = touchDistance(e.touches);
       photoViewerState.pinchStartScale = photoViewerState.scale;
+      photoViewerState.pinchStartPanX = photoViewerState.panX;
+      photoViewerState.pinchStartPanY = photoViewerState.panY;
+      photoViewerState.pinchOriginX = mid.x;
+      photoViewerState.pinchOriginY = mid.y;
+      photoViewerState.pinchCenterX = rect ? rect.left + rect.width / 2 : mid.x;
+      photoViewerState.pinchCenterY = rect ? rect.top + rect.height / 2 : mid.y;
       e.preventDefault();
       return;
     }
@@ -2680,17 +2733,24 @@ function setupPhotoViewer() {
     photoViewerState.panOriginY = photoViewerState.panY;
     photoViewerState.touchActive = true;
     photoViewerState.swiping = false;
+    if (photoViewerState.scale > 1.01) e.preventDefault();
   }, { passive: false });
 
   viewport.addEventListener("touchmove", (e) => {
     if (e.touches.length === 2 && photoViewerState.gesturing) {
       const dist = touchDistance(e.touches);
+      const mid = touchMidpoint(e.touches);
       const next = Math.min(
         photoViewerState.maxScale,
         Math.max(photoViewerState.minScale, photoViewerState.pinchStartScale * (dist / Math.max(photoViewerState.pinchStartDist, 1)))
       );
+      const factor = next / Math.max(photoViewerState.pinchStartScale, 0.001);
+      const dx = photoViewerState.pinchOriginX - photoViewerState.pinchCenterX;
+      const dy = photoViewerState.pinchOriginY - photoViewerState.pinchCenterY;
       photoViewerState.scale = next;
-      if (next <= 1) {
+      photoViewerState.panX = photoViewerState.pinchStartPanX + dx * (1 - factor) + (mid.x - photoViewerState.pinchOriginX);
+      photoViewerState.panY = photoViewerState.pinchStartPanY + dy * (1 - factor) + (mid.y - photoViewerState.pinchOriginY);
+      if (next <= 1.01) {
         photoViewerState.panX = 0;
         photoViewerState.panY = 0;
       }
@@ -2722,6 +2782,7 @@ function setupPhotoViewer() {
       if (e.touches.length < 2) {
         photoViewerState.gesturing = false;
         if (photoViewerState.scale < 1.05) resetPhotoViewerZoom();
+        else clampPhotoViewerPan();
       }
       return;
     }
@@ -2729,18 +2790,17 @@ function setupPhotoViewer() {
     const dx = e.changedTouches[0].clientX - photoViewerState.touchStartX;
     const dy = e.changedTouches[0].clientY - photoViewerState.touchStartY;
     const now = Date.now();
-    const isTap = Math.abs(dx) < 10 && Math.abs(dy) < 10;
-    if (isTap && now - photoViewerState.lastTapAt < 280) {
+    const isTap = Math.abs(dx) < 12 && Math.abs(dy) < 12;
+    const tapX = e.changedTouches[0].clientX;
+    const tapY = e.changedTouches[0].clientY;
+    if (isTap && now - photoViewerState.lastTapAt < 300) {
       if (photoViewerState.scale > 1.01) resetPhotoViewerZoom();
-      else {
-        photoViewerState.scale = 2.4;
-        photoViewerState.panX = 0;
-        photoViewerState.panY = 0;
-        applyPhotoViewerZoom();
-      }
+      else setPhotoViewerScaleAtPoint(2.6, tapX, tapY);
       photoViewerState.lastTapAt = 0;
     } else if (isTap) {
       photoViewerState.lastTapAt = now;
+      photoViewerState.lastTapX = tapX;
+      photoViewerState.lastTapY = tapY;
     } else if (photoViewerState.swiping && photoViewerState.scale <= 1.01 && Math.abs(dx) > 52) {
       if (dx < 0) goToViewerPhoto(photoViewerState.index + 1);
       else goToViewerPhoto(photoViewerState.index - 1);
