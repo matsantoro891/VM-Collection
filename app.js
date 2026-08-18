@@ -520,8 +520,61 @@ function renderItemCustomFields(categoryName, { announce = false } = {}) {
 const categoryComboboxState = {
   open: false,
   searching: false,
-  committed: ""
+  committed: "",
+  positionBound: false
 };
+
+function positionCategoryComboboxMenu() {
+  const menu = $("categoryMenu");
+  const combo = document.querySelector("#addView .category-combobox") || document.querySelector(".category-combobox");
+  if (!menu || menu.hidden || !combo) return;
+  const rect = combo.getBoundingClientRect();
+  const nav = document.querySelector(".bottom-nav");
+  const sticky = document.querySelector("#addView .sticky-form-actions");
+  const lowerBound = Math.min(
+    nav ? nav.getBoundingClientRect().top : window.innerHeight,
+    sticky ? sticky.getBoundingClientRect().top : window.innerHeight
+  );
+  const maxHeight = Math.max(120, Math.min(280, lowerBound - rect.bottom - 10));
+  menu.style.position = "fixed";
+  menu.style.left = `${Math.max(8, rect.left)}px`;
+  menu.style.width = `${rect.width}px`;
+  menu.style.right = "auto";
+  menu.style.top = `${rect.bottom + 4}px`;
+  menu.style.maxHeight = `${maxHeight}px`;
+  menu.style.zIndex = "80";
+}
+
+function clearCategoryComboboxMenuPosition() {
+  const menu = $("categoryMenu");
+  if (!menu) return;
+  menu.style.position = "";
+  menu.style.left = "";
+  menu.style.width = "";
+  menu.style.right = "";
+  menu.style.top = "";
+  menu.style.maxHeight = "";
+  menu.style.zIndex = "";
+}
+
+function onCategoryComboboxReposition() {
+  if (!categoryComboboxState.open) return;
+  positionCategoryComboboxMenu();
+}
+
+function bindCategoryComboboxMenuPosition() {
+  if (categoryComboboxState.positionBound) return;
+  categoryComboboxState.positionBound = true;
+  window.addEventListener("resize", onCategoryComboboxReposition);
+  window.addEventListener("scroll", onCategoryComboboxReposition, true);
+}
+
+function unbindCategoryComboboxMenuPosition() {
+  if (!categoryComboboxState.positionBound) return;
+  categoryComboboxState.positionBound = false;
+  window.removeEventListener("resize", onCategoryComboboxReposition);
+  window.removeEventListener("scroll", onCategoryComboboxReposition, true);
+}
 
 function getCategoryPickerNames({ searching = false, query = "" } = {}) {
   const names = getCategories();
@@ -535,6 +588,8 @@ function setCategoryComboboxExpanded(open) {
   categoryComboboxState.open = !!open;
   $("category")?.setAttribute("aria-expanded", open ? "true" : "false");
   $("categoryPickerToggle")?.setAttribute("aria-expanded", open ? "true" : "false");
+  document.querySelector(".form-identification-section")?.classList.toggle("is-combobox-open", !!open);
+  document.querySelector(".category-combobox")?.classList.toggle("is-open", !!open);
 }
 
 function closeCategoryCombobox() {
@@ -543,6 +598,8 @@ function closeCategoryCombobox() {
     menu.hidden = true;
     menu.innerHTML = "";
   }
+  unbindCategoryComboboxMenuPosition();
+  clearCategoryComboboxMenuPosition();
   setCategoryComboboxExpanded(false);
 }
 
@@ -566,6 +623,8 @@ function renderCategoryComboboxMenu() {
   }
   menu.hidden = false;
   setCategoryComboboxExpanded(true);
+  bindCategoryComboboxMenuPosition();
+  positionCategoryComboboxMenu();
   const selectedBtn = menu.querySelector(".category-combobox-option.is-selected");
   selectedBtn?.scrollIntoView({ block: "nearest" });
 }
