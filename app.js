@@ -36,7 +36,13 @@ let gridMode = "grid";
 let catalogAppliedFilters = { terms: [], categoryId: "", classification: "all", dateFrom: "", dateTo: "" };
 let catalogHasSearched = false;
 const CATEGORY_VIEW_STORAGE_KEY = "vmCollection.categoryViewMode";
+const CATEGORY_LIST_SORT_KEY = "vmCollection.categoryListSort";
+const CATEGORY_SORT_OPTIONS = ["name-asc", "newest", "oldest", "files-desc", "accessed"];
+function normalizeCategoryListSort(value) {
+  return CATEGORY_SORT_OPTIONS.includes(value) ? value : "name-asc";
+}
 let categoryViewMode = normalizeCategoryViewMode(localStorage.getItem(CATEGORY_VIEW_STORAGE_KEY));
+let categoryListSort = normalizeCategoryListSort(localStorage.getItem(CATEGORY_LIST_SORT_KEY));
 let addViewReturnContext = null;
 let addViewHistoryLock = false;
 const pdfViewerState = { url: "", blob: null, filename: "", title: "" };
@@ -72,6 +78,7 @@ function iconSvg(type) {
     users: `<svg viewBox="0 0 24 24"><circle ${c} cx="9" cy="8" r="3"/><circle ${c} cx="17" cy="9" r="2.5"/><path ${c} d="M3 20a6 6 0 0 1 12 0m0-4a5 5 0 0 1 6 4"/></svg>`,
     calendar: `<svg viewBox="0 0 24 24"><rect ${c} x="3" y="5" width="18" height="16" rx="2"/><path ${c} d="M7 3v4m10-4v4M3 10h18"/></svg>`,
     search: `<svg viewBox="0 0 24 24"><circle ${c} cx="11" cy="11" r="6"/><path ${c} d="m16.5 16.5 4 4"/></svg>`,
+    filter: `<svg viewBox="0 0 24 24"><path ${c} d="M4 5h16l-6.2 7.8V19l-3.6 1.6v-7.8L4 5Z"/></svg>`,
     home: `<svg viewBox="0 0 24 24"><path ${c} d="M4 10.5 12 4l8 6.5V20a1 1 0 0 1-1 1h-5v-6H10v6H5a1 1 0 0 1-1-1v-9.5Z"/></svg>`,
     download: `<svg viewBox="0 0 24 24"><path ${c} d="M12 3v12m0 0 4-4m-4 4-4-4M5 21h14"/></svg>`,
     vitrine: `<svg viewBox="0 0 24 24"><rect ${c} x="4" y="3" width="16" height="18" rx="1.5"/><path ${c} d="M4 8h16M8 8v13m8-13v13M9 12h2m4 0h2m-6 4h2m4 0h2"/></svg>`,
@@ -88,6 +95,7 @@ function setStaticIcons() {
     backupSettingIcon: "shield",
     navHomeIcon: "home", navSearchIcon: "search", navCategoryIcon: "grid", navProfileIcon: "profile",
     homeYourCategoriesIcon: "grid",
+    categoriesSortIcon: "filter",
     categoryCoverBtnIcon: "camera",
     categoryViewVitrineIcon: "vitrine", categoryViewEstanteIcon: "estante",
     itemPhotoBtnIcon: "camera", itemFileBtnIcon: "file",
@@ -238,7 +246,9 @@ function normalizeCategory(raw = {}) {
     attachments: Array.isArray(raw.attachments) ? raw.attachments.map(normalizeAttachment) : [],
     customFields: normalizeCustomFields(raw.customFields),
     createdAt: raw.createdAt || new Date().toISOString(),
-    updatedAt: raw.updatedAt || new Date().toISOString()
+    updatedAt: raw.updatedAt || new Date().toISOString(),
+    accessCount: Math.max(0, Number(raw.accessCount || 0) || 0),
+    lastAccessedAt: String(raw.lastAccessedAt || "")
   };
 }
 
@@ -1175,6 +1185,7 @@ function showView(id, options = {}) {
   if (id === "catalogView" && options.resetCatalogFilters) resetCatalogFilters({ render: false });
   if (id === "reportsView") renderReports();
   if (id === "statsView") renderStatsDashboard();
+  if (id !== "categoriesView") closeCategoriesSortMenu();
   if (id === "categoriesView") renderCategories();
   if (id === "homeView") renderHome();
   if (id === "catalogView") renderCatalog();
@@ -1877,13 +1888,144 @@ function syncCategoriesSearchUI() {
   if (input && input.value !== categoriesSearchQuery) input.value = categoriesSearchQuery;
 }
 
+function countCategoryArchiveFiles(group) {
+  const categoryFiles = (group.category?.attachments || []).length;
+  return items.filter((item) => itemBelongsToCategory(item, group.id)).reduce((sum, item) => {
+    return sum
+      + itemPhotosFromRaw(item).length
+      + (item.attachments || []).length
+      + (item.video ? 1 : 0)
+      + (item.memoryAudios || []).length;
+  }, categoryFiles);
+}
+
+function sortCategoryGroups(list, sortKey = categoryListSort) {
+  const sorted = [...list];
+  const key = normalizeCategoryListSort(sortKey);
+  sorted.sort((a, b) => {
+    switch (key) {
+      case "newest":
+        return compareCatalogDates(
+          { createdAt: a.category?.createdAt || a.category?.updatedAt },
+          { createdAt: b.category?.createdAt || b.category?.updatedAt },
+          "createdAt",
+          false
+        ) || compareCatalogNames(a.cat, b.cat, 1);
+      case "oldest":
+        return compareCatalogDates(
+          { createdAt: a.category?.createdAt || a.category?.updatedAt },
+          { createdAt: b.category?.createdAt || b.category?.updatedAt },
+          "createdAt",
+          true
+        ) || compareCatalogNames(a.cat, b.cat, 1);
+      case "files-desc": {
+        const diff = countCategoryArchiveFiles(b) - countCategoryArchiveFiles(a);
+        return diff || compareCatalogNames(a.cat, b.cat, 1);
+      }
+      case "accessed": {
+        const countDiff = Number(b.category?.accessCount || 0) - Number(a.category?.accessCount || 0);
+        if (countDiff) return countDiff;
+        return compareCatalogDates(a.category || {}, b.category || {}, "lastAccessedAt", false) || compareCatalogNames(a.cat, b.cat, 1);
+      }
+      case "name-asc":
+      default:
+        return compareCatalogNames(a.cat, b.cat, 1);
+    }
+  });
+  return sorted;
+}
+
+function setCategoryListSort(sortKey) {
+  categoryListSort = normalizeCategoryListSort(sortKey);
+  localStorage.setItem(CATEGORY_LIST_SORT_KEY, categoryListSort);
+  syncCategoriesSortMenu();
+  renderCategories();
+}
+
+function syncCategoriesSortMenu() {
+  const btn = $("categoriesSortBtn");
+  const menu = $("categoriesSortMenu");
+  if (!menu) return;
+  menu.querySelectorAll(".categories-sort-option").forEach((option) => {
+    const selected = option.dataset.sort === categoryListSort;
+    option.classList.toggle("is-selected", selected);
+    option.setAttribute("aria-checked", selected ? "true" : "false");
+  });
+  const selectedLabel = menu.querySelector(".categories-sort-option.is-selected")?.textContent?.trim() || "Nome (A → Z)";
+  if (btn) btn.setAttribute("aria-label", `Ordenar categorias, ${selectedLabel}`);
+}
+
+function closeCategoriesSortMenu() {
+  const menu = $("categoriesSortMenu");
+  const btn = $("categoriesSortBtn");
+  const wrap = $("categoriesSortWrap");
+  if (menu) menu.hidden = true;
+  btn?.setAttribute("aria-expanded", "false");
+  wrap?.classList.remove("is-open");
+}
+
+function openCategoriesSortMenu() {
+  const menu = $("categoriesSortMenu");
+  const btn = $("categoriesSortBtn");
+  const wrap = $("categoriesSortWrap");
+  if (!menu || !btn) return;
+  syncCategoriesSortMenu();
+  menu.hidden = false;
+  btn.setAttribute("aria-expanded", "true");
+  wrap?.classList.add("is-open");
+}
+
+function setupCategoriesSortMenu() {
+  const btn = $("categoriesSortBtn");
+  const menu = $("categoriesSortMenu");
+  if (!btn || !menu) return;
+  syncCategoriesSortMenu();
+  btn.addEventListener("click", (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (menu.hidden) openCategoriesSortMenu();
+    else closeCategoriesSortMenu();
+  });
+  menu.addEventListener("click", (e) => {
+    const option = e.target.closest(".categories-sort-option");
+    if (!option) return;
+    e.preventDefault();
+    e.stopPropagation();
+    setCategoryListSort(option.dataset.sort);
+    closeCategoriesSortMenu();
+  });
+  document.addEventListener("click", (e) => {
+    if (menu.hidden) return;
+    if (e.target.closest("#categoriesSortWrap")) return;
+    closeCategoriesSortMenu();
+  });
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape" && !menu.hidden) closeCategoriesSortMenu();
+  });
+}
+
+function touchCategoryAccess(categoryId) {
+  const index = categories.findIndex((category) => category.id === categoryId);
+  if (index < 0) return;
+  const current = categories[index];
+  categories[index] = normalizeCategory({
+    ...current,
+    accessCount: Number(current.accessCount || 0) + 1,
+    lastAccessedAt: new Date().toISOString()
+  });
+  Promise.resolve(VMStorage.put("categories", categories[index])).catch(() => {
+    VMStorage.replaceAll("categories", categories);
+  });
+}
+
 function renderCategories() {
-  const grouped = getCategoryGroups().sort((a, b) => b.count - a.count);
+  const grouped = sortCategoryGroups(getCategoryGroups(), categoryListSort);
   const query = normalizeSearchInput(categoriesSearchQuery);
   const filtered = query
     ? grouped.filter(({ cat }) => normalizeSearchInput(cat).includes(query))
     : grouped;
   syncCategoriesSearchUI();
+  syncCategoriesSortMenu();
   if (!grouped.length) {
     $("categoryCards").innerHTML = emptyHtml();
     return;
@@ -1998,6 +2140,8 @@ function populateCategoryDetailContent(categoryId) {
 function openCategoryDetail(categoryId, options = {}) {
   const category = categories.find((c) => c.id === categoryId);
   if (!category) return;
+  closeCategoriesSortMenu();
+  if (!options.preservePageScroll) touchCategoryAccess(categoryId);
   activeCategoryDetailId = categoryId;
   if (!options.preserveSearch) {
     categoryDetailState.searchQuery = "";
@@ -3033,10 +3177,11 @@ function hasPositiveMoney(value) {
   return Number.isFinite(num) && num > 0;
 }
 
-function detailTableRow(label, value) {
+function detailTableRow(label, value, extraClass = "") {
   const text = String(value ?? "").trim();
   if (!text) return "";
-  return `<div><span>${escapeHtml(label)}</span>${escapeHtml(text)}</div>`;
+  const cls = extraClass ? ` class="${extraClass}"` : "";
+  return `<div${cls}><span>${escapeHtml(label)}</span>${escapeHtml(text)}</div>`;
 }
 
 function detailMoneyRow(label, value) {
@@ -3091,9 +3236,9 @@ function buildDetailHtml(item, { categoryMode = false, forceStack = false } = {}
     detailTableRow("Local de armazenamento", item.storageLocation),
     detailTableRow("Série / código", item.serial),
     detailTableRow("Tags", item.tags),
-    detailTableRow("Cadastrado em", formatItemDateTime(item.createdAt)),
-    detailTableRow("Atualizado em", formatItemDateTime(item.updatedAt)),
-    ...buildCustomFieldDetailRows(item)
+    ...buildCustomFieldDetailRows(item),
+    detailTableRow("Cadastrado em", formatItemDateTime(item.createdAt), "detail-table-meta"),
+    detailTableRow("Atualizado em", formatItemDateTime(item.updatedAt), "detail-table-meta")
   ].filter(Boolean).join("");
   const tableHtml = tableRows ? `<section class="detail-album-section"><h3>Dados técnicos</h3><div class="detail-table">${tableRows}</div></section>` : "";
   const notesHtml = item.notes
@@ -4015,6 +4160,7 @@ async function initializePersistentApp() {
     $("categoryDialog").close();
   });
   $("createCategoryBtn")?.addEventListener("click", openCategoryCreator);
+  setupCategoriesSortMenu();
   $("homeCreateCategoryPrimaryBtn")?.addEventListener("click", openCategoryCreator);
   $("homeCreateCategoryBtn")?.addEventListener("click", () => showView("categoriesView"));
   $("categoryLocateTrigger")?.addEventListener("click", openCategoriesSearch);

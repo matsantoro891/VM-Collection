@@ -8,11 +8,11 @@
   <meta name="apple-mobile-web-app-title" content="VM Life ARCHIVE" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
   <title>VM Life ARCHIVE</title>
-  <meta name="vm-asset-version" content="202608051" />
+  <meta name="vm-asset-version" content="202608052" />
   <link rel="manifest" href="manifest.webmanifest" />
   <link rel="apple-touch-icon" href="assets/icon-180.png" />
   <link rel="icon" href="assets/icon-192.png" />
-  <link rel="stylesheet" href="styles.css?v=202608051" />
+  <link rel="stylesheet" href="styles.css?v=202608052" />
 </head>
 <body>
   <div id="appShell">
@@ -25,12 +25,6 @@
           <div class="brand-line"><span></span><i></i><span></span></div>
         </div>
       </button>
-      <div class="top-actions">
-        <button class="notify-btn" type="button" aria-label="Notificações">
-          <span class="notify-dot"></span>
-          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 22a2.5 2.5 0 0 0 2.45-2h-4.9A2.5 2.5 0 0 0 12 22Zm7-4H5l1.6-1.78V11a5.4 5.4 0 0 1 4.4-5.3V5a1 1 0 1 1 2 0v.7A5.4 5.4 0 0 1 17.4 11v5.22Z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
-        </button>
-      </div>
     </header>
 
     <main class="content">
@@ -269,7 +263,19 @@
           </div>
         </div>
         <div class="section-title with-action categories-list-title">
-          <h3>Suas categorias</h3>
+          <div class="categories-sort-wrap" id="categoriesSortWrap">
+            <button type="button" id="categoriesSortBtn" class="categories-sort-btn" aria-label="Ordenar categorias" aria-haspopup="menu" aria-expanded="false" aria-controls="categoriesSortMenu">
+              <span class="categories-sort-icon" id="categoriesSortIcon" aria-hidden="true"></span>
+            </button>
+            <div id="categoriesSortMenu" class="categories-sort-menu" hidden role="menu" aria-labelledby="categoriesSortHeading">
+              <p class="categories-sort-heading" id="categoriesSortHeading">Ordenar por</p>
+              <button type="button" class="categories-sort-option" role="menuitemradio" data-sort="name-asc">Nome (A → Z)</button>
+              <button type="button" class="categories-sort-option" role="menuitemradio" data-sort="newest">Mais recente</button>
+              <button type="button" class="categories-sort-option" role="menuitemradio" data-sort="oldest">Mais antiga</button>
+              <button type="button" class="categories-sort-option" role="menuitemradio" data-sort="files-desc">Maior quantidade de arquivos</button>
+              <button type="button" class="categories-sort-option" role="menuitemradio" data-sort="accessed">Mais acessada</button>
+            </div>
+          </div>
           <button id="createCategoryBtn" class="primary-btn" type="button">Criar Categoria</button>
         </div>
         <div id="categoryCards" class="category-grid empty-state"></div>
@@ -599,6 +605,6 @@
 
   <template id="emptyTemplate"><div class="empty"><span class="empty-symbol">◇</span><strong>Nenhum item por aqui ainda.</strong><p>Use “Adicionar item” para começar sua coleção.</p></div></template>
   <script src="storage.js?v=202606208"></script>
-  <script src="app.js?v=202608051"></script>
+  <script src="app.js?v=202608052"></script>
 </body>
 </html>
