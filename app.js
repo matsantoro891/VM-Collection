@@ -41,7 +41,7 @@ const CATEGORY_SORT_OPTIONS = ["name-asc", "newest", "oldest", "files-desc", "ac
 function normalizeCategoryListSort(value) {
   return CATEGORY_SORT_OPTIONS.includes(value) ? value : "name-asc";
 }
-let categoryViewMode = normalizeCategoryViewMode(localStorage.getItem(CATEGORY_VIEW_STORAGE_KEY));
+let categoryViewMode = "estante";
 let categoryListSort = normalizeCategoryListSort(localStorage.getItem(CATEGORY_LIST_SORT_KEY));
 let addViewReturnContext = null;
 let addViewHistoryLock = false;
@@ -82,7 +82,8 @@ function iconSvg(type) {
     home: `<svg viewBox="0 0 24 24"><path ${c} d="M4 10.5 12 4l8 6.5V20a1 1 0 0 1-1 1h-5v-6H10v6H5a1 1 0 0 1-1-1v-9.5Z"/></svg>`,
     download: `<svg viewBox="0 0 24 24"><path ${c} d="M12 3v12m0 0 4-4m-4 4-4-4M5 21h14"/></svg>`,
     vitrine: `<svg viewBox="0 0 24 24"><rect ${c} x="4" y="3" width="16" height="18" rx="1.5"/><path ${c} d="M4 8h16M8 8v13m8-13v13M9 12h2m4 0h2m-6 4h2m4 0h2"/></svg>`,
-    estante: `<svg viewBox="0 0 24 24"><path ${c} d="M4 4h16v3H4zm0 6.5h16v3H4zm0 6.5h16v3H4z"/><path ${c} d="M6 5.5h3M6 12h4M6 18.5h3"/></svg>`
+    estante: `<svg viewBox="0 0 24 24"><path ${c} d="M4 4h16v3H4zm0 6.5h16v3H4zm0 6.5h16v3H4z"/><path ${c} d="M6 5.5h3M6 12h4M6 18.5h3"/></svg>`,
+    timeline: `<svg viewBox="0 0 24 24"><path ${c} d="M6 3v18M10 5h10M10 12h7M10 19h10"/><circle ${c} cx="6" cy="5" r="2"/><circle ${c} cx="6" cy="12" r="2"/><circle ${c} cx="6" cy="19" r="2"/></svg>`
   };
   return icons[type] || "";
 }
@@ -97,7 +98,8 @@ function setStaticIcons() {
     homeYourCategoriesIcon: "grid",
     categoriesSortIcon: "filter",
     categoryCoverBtnIcon: "camera",
-    categoryViewVitrineIcon: "vitrine", categoryViewEstanteIcon: "estante",
+    categoryViewVitrineIcon: "vitrine", categoryViewEstanteIcon: "estante", categoryViewTimelineIcon: "timeline",
+    categoryDetailPdfIcon: "file",
     itemPhotoBtnIcon: "camera", itemFileBtnIcon: "file",
     pdfViewerDownloadIcon: "download"
   };
@@ -1332,7 +1334,7 @@ function itemMatchesSearchTerms(item, terms) {
 function normalizeCategoryViewMode(mode) {
   if (mode === "lista") return "vitrine";
   const allowed = ["vitrine", "estante", "timeline"];
-  return allowed.includes(mode) ? mode : "vitrine";
+  return allowed.includes(mode) ? mode : "estante";
 }
 
 function getCategoryViewMode() {
@@ -1348,7 +1350,7 @@ function setCategoryViewMode(mode) {
 function updateCategoryViewSwitcherUI() {
   document.querySelectorAll(".category-view-btn").forEach((btn) => {
     btn.classList.toggle("is-active", btn.dataset.categoryView === categoryViewMode);
-    btn.setAttribute("aria-selected", String(btn.dataset.categoryView === categoryViewMode));
+    btn.setAttribute("aria-pressed", String(btn.dataset.categoryView === categoryViewMode));
   });
 }
 
@@ -2141,6 +2143,7 @@ function openCategoryDetail(categoryId, options = {}) {
   const category = categories.find((c) => c.id === categoryId);
   if (!category) return;
   closeCategoriesSortMenu();
+  if (!options.preservePageScroll) setCategoryViewMode("estante");
   if (!options.preservePageScroll) touchCategoryAccess(categoryId);
   activeCategoryDetailId = categoryId;
   if (!options.preserveSearch) {
@@ -3224,23 +3227,6 @@ function buildDetailHtml(item, { categoryMode = false, forceStack = false } = {}
   const connectionsHtml = connectionRows
     ? `<section class="detail-album-section"><h3>Pessoas, lugares e eventos</h3><div class="detail-table">${connectionRows}</div></section>`
     : "";
-  const tableRows = [
-    detailTableRow("Subcategoria", item.subcategory),
-    detailTableRow("Marca/Produtor", item.brand),
-    detailTableRow("Modelo", item.model),
-    detailTableRow("Escala", item.scale),
-    detailTableRow("Ano", item.year),
-    detailTableRow("Estado de conservação", item.condition),
-    detailTableRow("Valor facial", item.faceValue),
-    detailDateRow("Data do acontecimento", item.eventDate),
-    detailTableRow("Local de armazenamento", item.storageLocation),
-    detailTableRow("Série / código", item.serial),
-    detailTableRow("Tags", item.tags),
-    ...buildCustomFieldDetailRows(item),
-    detailTableRow("Cadastrado em", formatItemDateTime(item.createdAt), "detail-table-meta"),
-    detailTableRow("Atualizado em", formatItemDateTime(item.updatedAt), "detail-table-meta")
-  ].filter(Boolean).join("");
-  const tableHtml = tableRows ? `<section class="detail-album-section"><h3>Dados técnicos</h3><div class="detail-table">${tableRows}</div></section>` : "";
   const notesHtml = item.notes
     ? `<section class="detail-text-block"><h3>Observações</h3><p class="detail-description">${escapeHtml(item.notes)}</p></section>`
     : "";
@@ -3252,7 +3238,7 @@ function buildDetailHtml(item, { categoryMode = false, forceStack = false } = {}
     ? `<div class="detail-actions detail-actions-primary"><button class="primary-btn" type="button" onclick="editItem('${item.id}')">Editar item</button><button class="ghost-btn danger-btn" type="button" onclick="requestDeleteItem('${item.id}')">Excluir item</button></div>`
     : `<div class="detail-actions detail-actions-primary"><button class="primary-btn" type="button" onclick="editItem('${item.id}')">Editar item</button><button class="secondary-btn" type="button" onclick="shareItem('${item.id}')">Compartilhar</button><button class="secondary-btn" type="button" onclick="printItem('${item.id}')">Gerar ficha/PDF</button><button class="ghost-btn danger-btn" type="button" onclick="requestDeleteItem('${item.id}')">Excluir item</button></div>`;
   const stackClass = (categoryMode || forceStack) ? " detail-card-stack" : "";
-  return `<article class="detail-card${stackClass}"><div class="detail-hero">${media}<div class="detail-info"><span class="eyebrow">${escapeHtml(item.category || "Coleção")}</span><h2>${escapeHtml(item.name || "Item sem nome")}</h2>${detailStatusChips(item)}${descriptionHtml}${memoryHtml}${memoryAudiosHtml}${videoHtml}${connectionsHtml}${tableHtml}${notesHtml}${files}${actions}</div></div></article>`;
+  return `<article class="detail-card${stackClass}"><div class="detail-hero">${media}<div class="detail-info"><span class="eyebrow">${escapeHtml(item.category || "Coleção")}</span><h2>${escapeHtml(item.name || "Item sem nome")}</h2>${detailStatusChips(item)}${descriptionHtml}${memoryHtml}${memoryAudiosHtml}${videoHtml}${connectionsHtml}${notesHtml}${files}${actions}</div></div></article>`;
 }
 
 function refreshItemDetailDialog(itemId) {
