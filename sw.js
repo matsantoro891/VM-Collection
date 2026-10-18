@@ -1,4 +1,4 @@
-const CACHE = "vm-collection-v9-category-layout";
+const CACHE = "vm-life-archive-v10-official-icon";
 const FILES = [
   "./",
   "./index.html",
@@ -6,8 +6,12 @@ const FILES = [
   "./app.js",
   "./storage.js",
   "./manifest.webmanifest",
+  "./manifest.webmanifest?v=202610182",
+  "./assets/icon-180.png?v=202610182",
   "./assets/icon-192.png",
+  "./assets/icon-192.png?v=202610182",
   "./assets/icon-512.png",
+  "./assets/icon-512.png?v=202610182",
   "./assets/logo.png"
 ];
 const APP_SHELL_FILES = new Set(["/", "/index.html", "/app.js", "/styles.css", "/storage.js", "/sw.js"]);

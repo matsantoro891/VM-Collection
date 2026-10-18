@@ -919,7 +919,7 @@ async function saveProfile() {
   }
 }
 
-const HERO_PROFILE_FALLBACK = "assets/icon-192.png";
+const HERO_PROFILE_FALLBACK = "assets/icon-192.png?v=202610182";
 
 function getTimeGreeting() {
   const hour = new Date().getHours();
@@ -957,7 +957,7 @@ function updateHeroProfileImage(sourcePhoto = "") {
 }
 
 function updateProfilePhotoPreview() {
-  const src = profileDraftPhoto || "assets/icon-192.png";
+  const src = profileDraftPhoto || "assets/icon-192.png?v=202610182";
   if ($("profilePhotoPreview")) $("profilePhotoPreview").src = src;
 }
 
@@ -969,7 +969,7 @@ function renderProfile() {
   profileDraftPhoto = data.photo || "";
   updateProfilePhotoPreview();
 
-  const photo = profileDraftPhoto || "assets/icon-192.png";
+  const photo = profileDraftPhoto || "assets/icon-192.png?v=202610182";
   const displayName = data.name?.trim() || "Seu nome";
   const displayBio = data.bio?.trim() || "Adicione uma breve descrição sobre você.";
 
