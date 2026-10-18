@@ -8,11 +8,11 @@
   <meta name="apple-mobile-web-app-title" content="VM Life ARCHIVE" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
   <title>VM Life ARCHIVE</title>
-  <meta name="vm-asset-version" content="202610182" />
+  <meta name="vm-asset-version" content="202610183" />
   <link rel="manifest" href="manifest.webmanifest?v=202610182" />
   <link rel="apple-touch-icon" href="assets/icon-180.png?v=202610182" />
   <link rel="icon" href="assets/icon-192.png?v=202610182" />
-  <link rel="stylesheet" href="styles.css?v=202610182" />
+  <link rel="stylesheet" href="styles.css?v=202610183" />
 </head>
 <body>
   <div id="appShell">
@@ -155,19 +155,14 @@
           <section class="form-section media-section">
             <div class="section-number">01</div>
             <div class="form-section-content">
-              <div class="form-section-head media-section-head" aria-label="Mídias / Arquivos do item">
-                <div><span class="panel-kicker">MÍDIAS / ARQUIVOS DO ITEM</span></div>
-                <button class="text-action" id="removeMediaBtn" type="button">Remover mídia</button>
-              </div>
-              <div class="item-media-actions">
-                <button type="button" class="item-media-action-btn" id="openMediaMenuBtn" aria-label="Fotografia" aria-haspopup="dialog" aria-controls="mediaMenuDialog">
+              <div class="item-media-actions" role="group" aria-label="Mídias e arquivos do item">
+                <button type="button" class="item-media-action-btn" id="openMediaMenuBtn" aria-label="Fotografia" title="Fotografia" aria-haspopup="dialog" aria-controls="mediaMenuDialog">
                   <span class="item-media-action-icon" id="itemPhotoBtnIcon" aria-hidden="true"></span>
-                  <span>Fotografia</span>
                 </button>
-                <button type="button" class="item-media-action-btn" id="itemFileBtn" aria-label="Arquivo">
+                <button type="button" class="item-media-action-btn" id="itemFileBtn" aria-label="Arquivo" title="Arquivo">
                   <span class="item-media-action-icon" id="itemFileBtnIcon" aria-hidden="true"></span>
-                  <span>Arquivo</span>
                 </button>
+                <button class="item-media-action-btn item-media-remove-btn" id="removeMediaBtn" type="button" aria-label="Remover mídia" title="Remover mídia" hidden><span class="item-media-action-icon" id="itemRemoveMediaIcon" aria-hidden="true"></span></button>
               </div>
               <div class="media-compact-panel">
                 <p class="photo-limit-msg" id="photoLimitMsg" hidden role="status">Limite de 5 fotos atingido.</p>
@@ -497,8 +492,8 @@
           <button type="button" class="category-view-btn is-active" data-category-view="estante" aria-pressed="true" aria-label="Estante" title="Estante">
             <span class="category-view-btn-icon" id="categoryViewEstanteIcon" aria-hidden="true"></span>
           </button>
-          <button id="categoryDetailPdfBtn" class="secondary-btn category-detail-action-btn" type="button" aria-label="Gerar PDF" title="Gerar PDF"><span class="category-view-btn-icon" id="categoryDetailPdfIcon" aria-hidden="true"></span></button>
           <button type="button" class="category-view-btn" data-category-view="timeline" aria-pressed="false" aria-label="Linha do tempo" title="Linha do tempo"><span class="category-view-btn-icon" id="categoryViewTimelineIcon" aria-hidden="true"></span></button>
+          <button id="categoryDetailPdfBtn" class="secondary-btn category-detail-action-btn" type="button" aria-label="Gerar PDF" title="Gerar PDF"><span class="category-view-btn-icon" id="categoryDetailPdfIcon" aria-hidden="true"></span></button>
         </div>
         <div id="categoryDetailItems" class="category-detail-items cards-grid"></div>
       </div>
@@ -601,6 +596,6 @@
 
   <template id="emptyTemplate"><div class="empty"><span class="empty-symbol">◇</span><strong>Nenhum item por aqui ainda.</strong><p>Use “Adicionar item” para começar sua coleção.</p></div></template>
   <script src="storage.js?v=202606208"></script>
-  <script src="app.js?v=202610182"></script>
+  <script src="app.js?v=202610183"></script>
 </body>
 </html>

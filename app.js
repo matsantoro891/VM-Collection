@@ -71,6 +71,7 @@ function iconSvg(type) {
     camera: `<svg viewBox="0 0 24 24"><path ${c} d="M4 7h4l2-3h4l2 3h4a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V9a2 2 0 0 1 2-2Zm8 10a4 4 0 1 0 0-8 4 4 0 0 0 0 8Z"/></svg>`,
     gallery: `<svg viewBox="0 0 24 24"><rect ${c} x="3" y="5" width="18" height="14" rx="2"/><circle ${c} cx="9" cy="11" r="2"/><path ${c} d="m3 17 4.5-4.5a1.5 1.5 0 0 1 2.1 0L14 17"/></svg>`,
     file: `<svg viewBox="0 0 24 24"><path ${c} d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8l-5-5Z"/><path ${c} d="M14 3v5h5"/></svg>`,
+    trash: `<svg viewBox="0 0 24 24"><path ${c} d="M3 6h18M9 6V3h6v3M5 6l1 15h12l1-15M10 10v7m4-7v7"/></svg>`,
     video: `<svg viewBox="0 0 24 24"><rect ${c} x="3" y="6" width="13" height="12" rx="2"/><path ${c} d="M16 10.5 21 8v8l-5-2.5v-3Z"/></svg>`,
     profile: `<svg viewBox="0 0 24 24"><circle ${c} cx="12" cy="8" r="4"/><path ${c} d="M4 21a8 8 0 0 1 16 0"/></svg>`,
     shield: `<svg viewBox="0 0 24 24"><path ${c} d="M12 3 4 6v6c0 5 3.5 8 8 9 4.5-1 8-4 8-9V6l-8-3Z"/><path ${c} d="m9 12 2 2 4-5"/></svg>`,
@@ -100,7 +101,7 @@ function setStaticIcons() {
     categoryCoverBtnIcon: "camera",
     categoryViewVitrineIcon: "vitrine", categoryViewEstanteIcon: "estante", categoryViewTimelineIcon: "timeline",
     categoryDetailPdfIcon: "file",
-    itemPhotoBtnIcon: "camera", itemFileBtnIcon: "file",
+    itemPhotoBtnIcon: "camera", itemFileBtnIcon: "file", itemRemoveMediaIcon: "trash",
     pdfViewerDownloadIcon: "download"
   };
   Object.entries(map).forEach(([id, type]) => { if ($(id)) $(id).innerHTML = iconSvg(type); });
@@ -3025,6 +3026,7 @@ function removeItemPhoto(index) {
 }
 
 function renderPhotoThumbGrid() {
+  if ($("removeMediaBtn")) $("removeMediaBtn").hidden = !currentPhotos.length && !currentVideo;
   const grid = $("photoThumbGrid");
   if (!grid) return;
   if (!currentPhotos.length) {

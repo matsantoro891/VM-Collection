@@ -1,4 +1,4 @@
-const CACHE = "vm-life-archive-v10-official-icon";
+const CACHE = "vm-life-archive-v11-compact-media";
 const FILES = [
   "./",
   "./index.html",

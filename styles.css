@@ -231,14 +231,18 @@ svg{display:block;width:100%;height:100%}
 #addView .section-number{display:none}
 #addView .form-section-content{padding:16px 16px}
 #addView .form-section-head{margin-bottom:10px}
-.item-media-actions{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px}
-.item-media-action-btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:46px;padding:0 12px;border:1px solid var(--line);border-radius:18px;background:#fff;color:var(--ink);font-weight:750;font-size:.88rem;cursor:pointer}
+.item-media-actions{display:flex;align-items:center;gap:10px}
+.item-media-action-btn{display:inline-flex;align-items:center;justify-content:center;flex:0 0 48px;width:48px;height:48px;padding:0;border:1px solid var(--line);border-radius:50%;background:#fff;color:var(--ink);cursor:pointer}
+.item-media-action-btn[hidden]{display:none}
+.item-media-remove-btn{margin-left:auto}
 .item-media-action-btn:hover{border-color:var(--gold-soft);box-shadow:var(--shadow-soft)}
 .item-media-action-btn:active{transform:scale(.98)}
-.item-media-action-icon{width:28px;height:28px;border-radius:50%;display:grid;place-items:center;background:var(--navy);color:#fff;flex-shrink:0}
-.item-media-action-icon svg{width:16px;height:16px;display:block}
+.item-media-action-icon{width:100%;height:100%;border-radius:50%;display:grid;place-items:center;background:var(--navy);color:#fff;flex-shrink:0}
+.item-media-action-icon svg{width:24px;height:24px;display:block}
 #addView .attachment-list:empty{display:none}
 #addView .media-compact-panel{gap:8px}
+#addView .photo-thumb-grid:empty,#addView .video-preview:empty{display:none}
+#addView .media-compact-panel:has(.photo-thumb-wrap,video,.photo-limit-msg:not([hidden])){margin-top:12px}
 .premium-page-banner.category-banner{min-height:115px;padding:16px 22px 18px;align-items:center}
 .premium-page-banner.category-banner .page-banner-copy h2{font-size:clamp(1.35rem,4.2vw,2rem);line-height:1.05;margin:6px 0 0}
 .premium-page-banner.category-banner .banner-icon{width:52px;height:52px;margin:0 4px 0 8px;opacity:.88}
